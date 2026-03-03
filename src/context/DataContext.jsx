@@ -108,50 +108,50 @@ export const DataProvider = ({ children }) => {
   const addProduct = async (product) => {
     const next = [product, ...products];
     setProducts(next);
-    await saveState({ products: next, plans, modules, categories });
+    await saveState({ products: next });
   };
 
   const addProducts = async (newProducts) => {
     const next = [...newProducts, ...products];
     setProducts(next);
-    await saveState({ products: next, plans, modules, categories });
+    await saveState({ products: next });
   };
 
   const updateProduct = async (updatedProduct) => {
     const next = products.map((item) => (item.key === updatedProduct.key ? updatedProduct : item));
     setProducts(next);
-    await saveState({ products: next, plans, modules, categories });
+    await saveState({ products: next });
   };
 
   const deleteProduct = async (key) => {
     const next = products.filter((item) => item.key !== key);
     setProducts(next);
-    await saveState({ products: next, plans, modules, categories });
+    await saveState({ products: next });
   };
 
   // Plan Actions
   const addPlan = async (plan) => {
     const next = [plan, ...plans];
     setPlans(next);
-    await saveState({ products, plans: next, modules, categories });
+    await saveState({ plans: next });
   };
 
   const addPlans = async (newPlans) => {
     const next = [...newPlans, ...plans];
     setPlans(next);
-    await saveState({ products, plans: next, modules, categories });
+    await saveState({ plans: next });
   };
 
   const updatePlan = async (updatedPlan) => {
     const next = plans.map((item) => (item.id === updatedPlan.id ? updatedPlan : item));
     setPlans(next);
-    await saveState({ products, plans: next, modules, categories });
+    await saveState({ plans: next });
   };
 
   const deletePlan = async (id) => {
     const next = plans.filter((item) => item.id !== id);
     setPlans(next);
-    await saveState({ products, plans: next, modules, categories });
+    await saveState({ plans: next });
   };
 
   // Module Actions
@@ -163,9 +163,8 @@ export const DataProvider = ({ children }) => {
       nextModules = [...prev, newModule];
       return nextModules;
     });
-    // Wait for state update or use the locally calculated next state
-    // Important: We must use the latest values for other states too
-    await saveState({ products, plans, modules: nextModules, categories });
+    // Send ONLY the changed modules to avoid overwriting other fields with stale data
+    await saveState({ modules: nextModules });
   };
 
   const deleteModule = async (moduleName) => {
@@ -173,7 +172,8 @@ export const DataProvider = ({ children }) => {
     const nextCategories = categories.filter((c) => c.module !== moduleName);
     setModules(nextModules);
     setCategories(nextCategories);
-    await saveState({ products, plans, modules: nextModules, categories: nextCategories });
+    // Send only modules and categories
+    await saveState({ modules: nextModules, categories: nextCategories });
   };
 
   // Category Actions
@@ -181,7 +181,7 @@ export const DataProvider = ({ children }) => {
     const newCat = { ...category, module: moduleName };
     const next = [...categories, newCat];
     setCategories(next);
-    await saveState({ products, plans, modules, categories: next });
+    await saveState({ categories: next });
   };
 
   const updateCategory = async (oldModule, oldName, newModule, newName) => {
@@ -192,7 +192,7 @@ export const DataProvider = ({ children }) => {
       return cat;
     });
     setCategories(next);
-    await saveState({ products, plans, modules, categories: next });
+    await saveState({ categories: next });
   };
 
   const deleteCategory = async (moduleName, categoryName) => {
@@ -200,7 +200,7 @@ export const DataProvider = ({ children }) => {
       (cat) => !(cat.module === moduleName && cat.name === categoryName)
     );
     setCategories(next);
-    await saveState({ products, plans, modules, categories: next });
+    await saveState({ categories: next });
   };
 
   // User Actions
