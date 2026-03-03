@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "id": "b78f9f2d-bb2c-4b5c-837f-7465d196bb3d",
+      "username": "admin",
+      "passwordHash": "$2a$10$wneCJDJ5xr9c/2W2a3qd/OuC/xFKXcED.ypNVP/T57Kzebj5XqGIm",
+      "role": "admin",
+      "createTime": "2026/2/28"
+    }
+  ],
+  "products": [],
+  "plans": [],
+  "modules": [
+    {
+      "name": "卫浴",
+      "id": "bathroom"
+    },
+    {
+      "name": "净水",
+      "id": "water"
+    }
+  ],
+  "categories": []
+}

@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc; /* Lighter background for better contrast with cards */
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Global Card Styles for Rounded UI */
+.ant-card {
+  border-radius: 16px !important; /* Larger border radius */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important; /* Softer shadow */
+  border: none !important;
+}
+
+.ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  min-height: 56px;
+  padding: 0 24px;
+}
+
+.ant-card-head-title {
+  padding: 16px 0;
+  font-weight: 600;
+}
+
+/* Button Styles */
+.ant-btn {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.ant-btn-primary {
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1) !important;
+}
+
+/* Input Styles */
+.ant-input, .ant-input-affix-wrapper, .ant-select-selector, .ant-picker {
+  border-radius: 8px !important;
+}
+
+/* Modal Styles */
+.ant-modal-content {
+  border-radius: 20px !important;
+  padding: 24px !important;
+}
+
+.ant-modal-header {
+  border-radius: 20px 20px 0 0 !important;
+}
+
+/* Table Styles */
+.ant-table-container {
+  border-radius: 12px !important;
+}
+
+.ant-table {
+  border-radius: 12px !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #f9fafb !important; /* Softer header background */
+}
+
+/* Tag Styles */
+.ant-tag {
+  border-radius: 6px !important;
+  border: none !important;
+  padding: 2px 10px !important;
+}
+
+/* Custom Module Card Style in CategoryManagement */
+.module-card {
+  border-radius: 24px !important;
+  border: 1px solid #f0f0f0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Sidebar Styles */
+.custom-sidebar-menu.ant-menu {
+  background: transparent !important;
+  padding: 0 12px;
+  border-right: none !important;
+}
+
+.custom-sidebar-menu .ant-menu-item {
+  border-radius: 8px !important;
+  margin-bottom: 8px !important;
+  color: #8BB6CC !important; /* Inactive text color */
+  font-weight: 500;
+  transition: all 0.3s ease !important;
+}
+
+.custom-sidebar-menu .ant-menu-item:hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.custom-sidebar-menu .ant-menu-item-selected {
+  background-color: #004566 !important; /* Active bg color */
+  color: #33C5FF !important; /* Active text color */
+}
+
+.custom-sidebar-menu .ant-menu-item-selected .anticon {
+  color: #33C5FF !important;
+}
+
+.custom-sidebar-menu .ant-menu-title-content {
+  margin-left: 10px;
+}
