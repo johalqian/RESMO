@@ -7,6 +7,11 @@ export default async function handler(req, res) {
   if (!auth) return sendJson(res, 401, { message: 'unauthorized' });
 
   if (req.method === 'GET') {
+    // Disable Vercel caching for API responses
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     let store = await loadStore();
     // Only ensure admin exists, do NOT save state on GET requests
     // This prevents race conditions or overwriting data with defaults on load
