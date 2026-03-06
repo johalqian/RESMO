@@ -19,6 +19,7 @@ const defaultState = () => ({
     { name: '净水', id: 'water' },
   ],
   categories: [],
+  deliveryData: [],
 });
 
 const ensureDir = async () => {
@@ -47,6 +48,7 @@ export const loadStore = async () => {
       plans: Array.isArray(parsed.plans) ? parsed.plans : [],
       modules: Array.isArray(parsed.modules) ? parsed.modules : defaultState().modules,
       categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+      deliveryData: Array.isArray(parsed.deliveryData) ? parsed.deliveryData : [],
     };
   } catch {
     return defaultState();

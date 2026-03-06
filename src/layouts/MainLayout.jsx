@@ -10,7 +10,8 @@ import {
   LogoutOutlined,
   SettingOutlined,
   CloudDownloadOutlined,
-  CloudUploadOutlined
+  CloudUploadOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -22,7 +23,7 @@ const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { products, plans, modules, categories, users, logout, currentUser } = useContext(DataContext);
+  const { products, plans, modules, categories, deliveryData, users, logout, currentUser } = useContext(DataContext);
   const restoreInputRef = useRef(null);
 
   const menuItems = [
@@ -92,6 +93,7 @@ const MainLayout = () => {
   const getBreadcrumb = () => {
     const path = location.pathname;
     let title = '仪表盘概览';
+    if (path.includes('delivery')) title = '投放数据管理';
     if (path.includes('products')) title = '产品列表管理';
     if (path.includes('matrix')) title = '市场定位矩阵';
     if (path.includes('planning')) title = '产品规划管理';
@@ -153,6 +155,10 @@ const MainLayout = () => {
       const wsCategories = XLSX.utils.json_to_sheet(sanitize(categories));
       XLSX.utils.book_append_sheet(wb, wsCategories, "二级品类");
 
+      // Delivery Data Sheet
+      const wsDelivery = XLSX.utils.json_to_sheet(sanitize(deliveryData || []));
+      XLSX.utils.book_append_sheet(wb, wsDelivery, "投放数据");
+
       // Users Sheet
       const wsUsers = XLSX.utils.json_to_sheet(sanitize(users));
       XLSX.utils.book_append_sheet(wb, wsUsers, "用户账号");
@@ -192,6 +198,7 @@ const MainLayout = () => {
       const restoredPlans = getSheet('产品规划');
       const restoredModules = getSheet('一级模块');
       const restoredCategories = getSheet('二级品类');
+      const restoredDelivery = getSheet('投放数据');
 
       const token = localStorage.getItem('resmo_token');
       if (!token) {
@@ -210,6 +217,7 @@ const MainLayout = () => {
           plans: restoredPlans || [],
           modules: restoredModules || [],
           categories: restoredCategories || [],
+          deliveryData: restoredDelivery || [],
         }),
       });
 

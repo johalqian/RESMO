@@ -59,6 +59,7 @@ app.get('/api/state', authRequired, async (req, res) => {
     plans: store.plans,
     modules: store.modules,
     categories: store.categories,
+    deliveryData: store.deliveryData,
   });
 });
 
@@ -73,6 +74,7 @@ app.put('/api/state', authRequired, async (req, res) => {
   store.plans = Array.isArray(body.plans) ? body.plans : store.plans;
   store.modules = Array.isArray(body.modules) ? body.modules : store.modules;
   store.categories = Array.isArray(body.categories) ? body.categories : store.categories;
+  store.deliveryData = Array.isArray(body.deliveryData) ? body.deliveryData : store.deliveryData;
   await persist();
   res.json({ ok: true });
 });
@@ -105,6 +107,119 @@ app.post('/api/users', authRequired, adminRequired, async (req, res) => {
   store.users.push(user);
   await persist();
   res.json({ user: publicUser(user) });
+});
+
+// Delivery Data Endpoints
+app.get('/api/delivery', authRequired, async (req, res) => {
+  await reloadStore();
+  const { startDate, endDate } = req.query;
+  let data = store.deliveryData || [];
+
+  if (startDate || endDate) {
+    data = data.filter((item) => {
+      if (startDate && item.date < startDate) return false;
+      if (endDate && item.date > endDate) return false;
+      return true;
+    });
+  }
+
+  // Sort by date descending by default
+  data.sort((a, b) => (a.date > b.date ? -1 : 1));
+  res.json({ data });
+});
+
+app.post('/api/delivery', authRequired, async (req, res) => {
+  await reloadStore();
+  const role = req.user.role;
+  if (role !== 'admin' && role !== 'editor') {
+    return res.status(403).json({ message: 'forbidden' });
+  }
+
+  const items = Array.isArray(req.body) ? req.body : [req.body];
+  
+  // Use a map for existing data for O(1) lookup
+  const existingMap = new Map((store.deliveryData || []).map(item => [item.date, item]));
+  const processedItems = [];
+
+  for (const item of items) {
+    if (!item.date) continue; // Skip invalid items
+
+    if (existingMap.has(item.date)) {
+      // Update existing
+      const existing = existingMap.get(item.date);
+      const updated = {
+        ...existing,
+        ...item,
+        id: existing.id, // Keep original ID
+        updateTime: new Date().toISOString(),
+        updatedBy: req.user.username,
+      };
+      existingMap.set(item.date, updated);
+      processedItems.push(updated);
+    } else {
+      // Create new
+      const newItem = {
+        ...item,
+        id: crypto.randomUUID(),
+        createTime: new Date().toISOString(),
+        updateTime: new Date().toISOString(),
+        createdBy: req.user.username,
+      };
+      existingMap.set(item.date, newItem);
+      processedItems.push(newItem);
+    }
+  }
+
+  // Convert map back to array
+  store.deliveryData = Array.from(existingMap.values());
+  
+  // Sort by date
+  store.deliveryData.sort((a, b) => (a.date > b.date ? -1 : 1));
+
+  await persist();
+  res.json({ data: processedItems });
+});
+
+app.put('/api/delivery/:id', authRequired, async (req, res) => {
+  await reloadStore();
+  const role = req.user.role;
+  if (role !== 'admin' && role !== 'editor') {
+    return res.status(403).json({ message: 'forbidden' });
+  }
+
+  const id = req.params.id;
+  const idx = (store.deliveryData || []).findIndex((item) => item.id === id);
+  if (idx < 0) return res.status(404).json({ message: 'not_found' });
+
+  store.deliveryData[idx] = {
+    ...store.deliveryData[idx],
+    ...req.body,
+    id, // Ensure ID doesn't change
+    updateTime: new Date().toISOString(),
+    updatedBy: req.user.username,
+  };
+
+  await persist();
+  res.json({ data: store.deliveryData[idx] });
+});
+
+app.delete('/api/delivery/:id', authRequired, async (req, res) => {
+  await reloadStore();
+  const role = req.user.role;
+  if (role !== 'admin' && role !== 'editor') {
+    return res.status(403).json({ message: 'forbidden' });
+  }
+
+  const id = req.params.id;
+  const initialLength = (store.deliveryData || []).length;
+  store.deliveryData = (store.deliveryData || []).filter((item) => item.id !== id);
+  
+  if (store.deliveryData.length === initialLength) {
+    return res.status(404).json({ message: 'not_found' });
+  }
+
+  await persist();
+  res.json({ ok: true });
 });
 
 app.put('/api/users/:id', authRequired, adminRequired, async (req, res) => {
@@ -165,6 +280,7 @@ app.put('/api/admin/restore', authRequired, adminRequired, async (req, res) => {
   store.plans = Array.isArray(body.plans) ? body.plans : store.plans;
   store.modules = Array.isArray(body.modules) ? body.modules : store.modules;
   store.categories = Array.isArray(body.categories) ? body.categories : store.categories;
+  store.deliveryData = Array.isArray(body.deliveryData) ? body.deliveryData : store.deliveryData;
 
   if (Array.isArray(body.users)) {
     const incoming = body.users

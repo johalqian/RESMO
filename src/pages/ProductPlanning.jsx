@@ -8,26 +8,6 @@ import * as XLSX from 'xlsx';
 const { Option } = Select;
 const { TextArea } = Input;
 
-const ProductImage = ({ src }) => {
-  const [hasError, setHasError] = useState(false);
-
-  if (!src || hasError) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center text-gray-200 z-0">
-        <FileImageOutlined style={{ fontSize: '24px' }} />
-      </div>
-    );
-  }
-
-  return (
-    <img 
-      src={src} 
-      className="w-full h-full object-cover relative z-10" 
-      onError={() => setHasError(true)}
-    />
-  );
-};
-
 const ProductPlanning = () => {
   const { plans, addPlan, addPlans, updatePlan, deletePlan, addProduct, modules, categories } = useContext(DataContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -254,7 +234,7 @@ const ProductPlanning = () => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg min-h-screen">
+    <div className="bg-[#f5f5f7] p-6 rounded-lg min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <div>
            <h1 className="text-2xl font-bold">产品规划</h1>
@@ -302,22 +282,64 @@ const ProductPlanning = () => {
                 <h3 className="text-lg font-bold text-gray-800">{category}</h3>
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
               </div>
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {items.map(plan => (
-                  <Card
+                  <div 
                     key={plan.id}
-                    hoverable
-                    cover={
-                      <div className="w-full aspect-square overflow-hidden bg-gray-50 border-b border-gray-100 flex items-center justify-center relative">
-                        <ProductImage src={plan.image} />
-                      </div>
-                    }
-                    className="rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                    bodyStyle={{ padding: '12px' }}
+                    className="group relative bg-white rounded-xl p-4 h-[300px] flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden cursor-pointer"
                     onClick={() => handleEdit(plan)}
                   >
-                    <div className="absolute top-2 left-2 flex justify-between w-full pr-4">
-                       <Tag color={plan.grade === 'S级' ? 'gold' : 'blue'} className="mr-0 px-1 py-0.5 text-[10px] scale-90 origin-top-left border-none">{plan.grade}</Tag>
+                    {/* Content Layer - Top */}
+                    <div className="relative z-20 flex flex-col pointer-events-none">
+                      <div className="flex justify-between items-start mb-2">
+                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{plan.module}</span>
+                         <Tag color={plan.grade === 'S级' ? 'gold' : 'default'} className="mr-0 border-none px-1.5 py-0 rounded text-[9px] font-bold bg-gray-50 text-gray-500 group-hover:bg-gray-100 transition-colors">
+                            {plan.grade}
+                         </Tag>
+                      </div>
+
+                      <h3 className="text-base font-bold text-gray-900 leading-snug mb-1 line-clamp-1 tracking-tight" title={plan.name}>
+                        {plan.name}
+                      </h3>
+
+                      <p className="text-xs text-gray-400 font-medium line-clamp-2 mb-2 leading-relaxed h-8">
+                        {plan.desc || '暂无描述'}
+                      </p>
+
+                      <div className="text-[10px] text-gray-400 font-medium">
+                         <span>{plan.price}</span>
+                         {plan.date && plan.date !== '待定' && (
+                           <>
+                             <span className="mx-1">·</span>
+                             <span>{plan.date} 上市</span>
+                           </>
+                         )}
+                      </div>
+                    </div>
+
+                    {/* Image Layer - Bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[150px] flex items-end justify-center pb-4 z-10 transition-transform duration-500 ease-out group-hover:scale-105">
+                        {plan.image ? (
+                          <img 
+                            src={plan.image} 
+                            className="h-full max-w-[90%] object-contain" 
+                            alt={plan.name}
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.classList.add('bg-gray-50');
+                                e.target.parentElement.innerHTML = '<span class="text-gray-300 text-2xl"><svg viewBox="64 64 896 896" focusable="false" data-icon="picture" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 720l152-198 152 198H338zm528 48H158V232h708v536zm-648-48l184-240 160 206 128-166 176 248H218z"></path></svg></span>';
+                                e.target.parentElement.classList.add('items-center');
+                            }}
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gray-50 flex items-center justify-center text-gray-300">
+                             <PictureOutlined style={{ fontSize: '32px' }} />
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Actions Layer - Top Right (Hover) */}
+                    <div className="absolute top-6 right-6 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                        <Dropdown 
                           overlay={
                             <Menu>
@@ -352,26 +374,14 @@ const ProductPlanning = () => {
                           trigger={['click']}
                         >
                           <div 
-                            className="w-6 h-6 flex items-center justify-center bg-white/80 rounded-full hover:bg-white cursor-pointer shadow-sm"
+                            className="w-8 h-8 flex items-center justify-center bg-gray-100/80 backdrop-blur-sm rounded-full hover:bg-gray-200 cursor-pointer text-gray-600 transition-colors"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <MoreOutlined />
                           </div>
                         </Dropdown>
                     </div>
-                    
-                    <div className="flex justify-between items-start mb-1">
-                      <div className="text-[10px] text-purple-500 font-bold truncate max-w-[60%]">{plan.module}</div>
-                      <div className="text-[10px] text-gray-400 scale-90 origin-right">{plan.date || '待定'}</div>
-                    </div>
-
-                    <h3 className="text-sm font-bold mb-1 truncate text-gray-800" title={plan.name}>{plan.name}</h3>
-                    
-                    <div className="flex justify-between items-end border-t pt-2 border-gray-50 mt-1">
-                       <div className="font-bold text-gray-800 text-xs scale-100 origin-left">{plan.price}</div>
-                       <div className="text-[10px] text-gray-400 scale-90 origin-right"></div>
-                    </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </div>

@@ -8,6 +8,7 @@ import ProductPlanning from './pages/ProductPlanning';
 import CategoryManagement from './pages/CategoryManagement';
 import Login from './pages/Login';
 import AccountManagement from './pages/AccountManagement';
+import DeliveryLayout from './pages/Delivery';
 
 import { DataProvider, DataContext } from './context/DataContext';
 
@@ -46,6 +47,7 @@ const AppRoutes = () => {
         <Route path="matrix" element={<ProductMatrix />} />
         <Route path="planning" element={<ProductPlanning />} />
         <Route path="categories" element={<CategoryManagement />} />
+        <Route path="delivery" element={<DeliveryLayout />} />
         <Route path="accounts" element={
           <AdminRoute>
             <AccountManagement />

@@ -8,6 +8,7 @@ export const DataProvider = ({ children }) => {
   const [plans, setPlans] = useState([]);
   const [modules, setModules] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [deliveryData, setDeliveryData] = useState([]);
   const [users, setUsers] = useState([]);
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -48,6 +49,7 @@ export const DataProvider = ({ children }) => {
     setPlans(Array.isArray(data.plans) ? data.plans : []);
     setModules(Array.isArray(data.modules) ? data.modules : []);
     setCategories(Array.isArray(data.categories) ? data.categories : []);
+    setDeliveryData(Array.isArray(data.deliveryData) ? data.deliveryData : []);
   };
 
   const loadUsers = async () => {
@@ -156,14 +158,9 @@ export const DataProvider = ({ children }) => {
 
   // Module Actions
   const addModule = async (moduleName) => {
-    // Functional update to ensure we have the latest modules state
-    let nextModules;
-    setModules(prev => {
-      const newModule = { name: moduleName, id: Date.now().toString() };
-      nextModules = [...prev, newModule];
-      return nextModules;
-    });
-    // Send ONLY the changed modules to avoid overwriting other fields with stale data
+    const newModule = { name: moduleName, id: Date.now().toString() };
+    const nextModules = [...modules, newModule];
+    setModules(nextModules);
     await saveState({ modules: nextModules });
   };
 
@@ -172,7 +169,6 @@ export const DataProvider = ({ children }) => {
     const nextCategories = categories.filter((c) => c.module !== moduleName);
     setModules(nextModules);
     setCategories(nextCategories);
-    // Send only modules and categories
     await saveState({ modules: nextModules, categories: nextCategories });
   };
 
@@ -201,6 +197,43 @@ export const DataProvider = ({ children }) => {
     );
     setCategories(next);
     await saveState({ categories: next });
+  };
+
+  // Delivery Data Actions
+  const loadDeliveryData = async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const data = await apiFetch(`/api/delivery?${query}`);
+    setDeliveryData(Array.isArray(data.data) ? data.data : []);
+    return data.data;
+  };
+
+  const addDeliveryData = async (items) => {
+    const data = await apiFetch('/api/delivery', {
+      method: 'POST',
+      body: JSON.stringify(items),
+    });
+    // Optimistic update or reload?
+    // Since backend sorts and adds fields, better to reload or merge carefully.
+    // For simplicity, let's merge the returned new items.
+    const newItems = Array.isArray(data.data) ? data.data : [data.data];
+    setDeliveryData((prev) => {
+      const combined = [...newItems, ...prev];
+      combined.sort((a, b) => (a.date > b.date ? -1 : 1));
+      return combined;
+    });
+  };
+
+  const updateDeliveryItem = async (id, updates) => {
+    const data = await apiFetch(`/api/delivery/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    setDeliveryData((prev) => prev.map((item) => (item.id === id ? data.data : item)));
+  };
+
+  const deleteDeliveryItem = async (id) => {
+    await apiFetch(`/api/delivery/${id}`, { method: 'DELETE' });
+    setDeliveryData((prev) => prev.filter((item) => item.id !== id));
   };
 
   // User Actions
@@ -284,6 +317,11 @@ export const DataProvider = ({ children }) => {
         addCategory,
         updateCategory,
         deleteCategory,
+        deliveryData,
+        loadDeliveryData,
+        addDeliveryData,
+        updateDeliveryItem,
+        deleteDeliveryItem,
         users,
         addUser,
         updateUser,
