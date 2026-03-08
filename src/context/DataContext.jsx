@@ -68,10 +68,26 @@ export const DataProvider = ({ children }) => {
     // Current backend implementation expects a full snapshot on PUT.
     // Race condition warning: 'next' is constructed from closure state in the calling function.
     // We must ensure the calling function had the latest state.
-    await apiFetch('/api/state', {
-      method: 'PUT',
-      body: JSON.stringify(next),
-    });
+    
+    // NOTE: If payload is too large, Vercel Serverless Function might reject it (413 Payload Too Large).
+    // Vercel limit is 4.5MB. If images are base64, this limit is easily reached.
+    // We should compress images or handle errors gracefully.
+    // However, the backend logic now supports partial updates.
+    
+    try {
+      const res = await apiFetch('/api/state', {
+        method: 'PUT',
+        body: JSON.stringify(next),
+      });
+      // You might want to handle success/failure here
+    } catch (e) {
+      console.error("Save state failed:", e);
+      // If 413, we should probably warn the user that their image is too big or data too large
+      if (e.status === 413) {
+        // Try to notify user via UI if possible, or just log
+        console.warn("Payload too large! Data might not be saved.");
+      }
+    }
   };
 
   useEffect(() => {

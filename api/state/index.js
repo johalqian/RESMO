@@ -2,6 +2,14 @@ import { readJson, sendJson, methodNotAllowed } from '../_lib/http.js';
 import { getAuthUser } from '../_lib/auth.js';
 import { ensureAdmin, loadStore, saveStore } from '../_lib/store.js';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req, res) {
   const auth = getAuthUser(req);
   if (!auth) return sendJson(res, 401, { message: 'unauthorized' });
