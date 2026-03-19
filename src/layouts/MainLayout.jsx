@@ -251,10 +251,10 @@ const MainLayout = () => {
         />
         {/* Logo Section */}
         <div className="h-20 flex items-center px-6 gap-3 mb-2 pt-4">
-          <div className="w-10 h-10 bg-[#0099FF] rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30">
-            <SettingOutlined style={{ fontSize: '22px', color: 'white' }} />
+          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain p-1" />
           </div>
-          {!collapsed && <span className="text-white text-xl font-bold tracking-wide">RESMO瑞摩PMS</span>}
+          {!collapsed && <span className="text-white text-lg font-bold tracking-wide">RESMO PMS</span>}
         </div>
         
         <Menu

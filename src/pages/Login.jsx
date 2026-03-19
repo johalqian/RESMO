@@ -27,10 +27,8 @@ const Login = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#f0f2f5] flex-col gap-4">
       <Card className="w-96 shadow-lg rounded-xl">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-[#0099FF] rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
-             <UserOutlined style={{ fontSize: '24px', color: 'white' }} />
-          </div>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src="/logo.png" alt="RESMO Logo" className="h-12 mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-gray-800">RESMO PMS</h1>
           <p className="text-gray-500 mt-2">产品管理系统</p>
         </div>
