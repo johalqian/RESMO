@@ -29,9 +29,12 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-screen bg-[#f0f2f5] flex-col gap-4">
       <Card className="w-96 shadow-lg rounded-xl">
         <div className="text-center mb-8 flex flex-col items-center">
-          <img src={logoUrl} alt="RESMO Logo" className="h-16 mb-4 object-contain" />
-          <h1 className="text-2xl font-bold text-gray-800">RESMO PMS</h1>
-          <p className="text-gray-500 mt-2">产品管理系统</p>
+          <img src={logoUrl} alt="RESMO Logo" className="h-28 mb-3 object-contain" />
+          <div className="flex items-center gap-2 justify-center">
+            <h1 className="text-lg font-bold text-gray-800">RESMO PMS</h1>
+            <span className="text-gray-300">|</span>
+            <p className="text-sm text-gray-500 font-medium m-0">产品管理系统</p>
+          </div>
         </div>
 
         <Form

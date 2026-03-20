@@ -252,10 +252,9 @@ const MainLayout = () => {
         />
         {/* Logo Section */}
         <div className="h-20 flex items-center px-6 gap-3 mb-2 pt-4">
-          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden shrink-0">
-            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+          <div className="w-48 h-12 flex items-center justify-start overflow-hidden shrink-0">
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain object-left drop-shadow-md" style={{ filter: 'brightness(0) invert(1)' }} />
           </div>
-          {!collapsed && <span className="text-white text-lg font-bold tracking-wide">RESMO PMS</span>}
         </div>
         
         <Menu
