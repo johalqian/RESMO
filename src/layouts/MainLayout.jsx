@@ -16,6 +16,7 @@ import {
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { DataContext } from '../context/DataContext';
+import logoUrl from '../assets/logo.svg';
 
 const { Header, Sider, Content } = Layout;
 
@@ -251,8 +252,8 @@ const MainLayout = () => {
         />
         {/* Logo Section */}
         <div className="h-20 flex items-center px-6 gap-3 mb-2 pt-4">
-          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden">
-            <img src="https://file.302.ai/trae/1742463286551-789a4254f15d909562725e2439167232.png" alt="Logo" className="w-full h-full object-contain p-1" />
+          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
           </div>
           {!collapsed && <span className="text-white text-lg font-bold tracking-wide">RESMO PMS</span>}
         </div>

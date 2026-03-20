@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useContext } from 'react';
 import { DataContext } from '../context/DataContext';
 import { useNavigate } from 'react-router-dom';
+import logoUrl from '../assets/logo.svg';
 
 const Login = () => {
   const { login } = useContext(DataContext);
@@ -28,7 +29,7 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-screen bg-[#f0f2f5] flex-col gap-4">
       <Card className="w-96 shadow-lg rounded-xl">
         <div className="text-center mb-8 flex flex-col items-center">
-          <img src="https://file.302.ai/trae/1742463286551-789a4254f15d909562725e2439167232.png" alt="RESMO Logo" className="h-12 mb-4 object-contain" />
+          <img src={logoUrl} alt="RESMO Logo" className="h-16 mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-gray-800">RESMO PMS</h1>
           <p className="text-gray-500 mt-2">产品管理系统</p>
         </div>
