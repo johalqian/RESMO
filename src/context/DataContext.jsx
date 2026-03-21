@@ -10,6 +10,8 @@ export const DataProvider = ({ children }) => {
   const [categories, setCategories] = useState([]);
   const [deliveryData, setDeliveryData] = useState([]);
   const [users, setUsers] = useState([]);
+  const [timelines, setTimelines] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -49,6 +51,8 @@ export const DataProvider = ({ children }) => {
     setPlans(Array.isArray(data.plans) ? data.plans : []);
     setModules(Array.isArray(data.modules) ? data.modules : []);
     setCategories(Array.isArray(data.categories) ? data.categories : []);
+    setTimelines(Array.isArray(data.timelines) ? data.timelines : []);
+    setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
     setDeliveryData(Array.isArray(data.deliveryData) ? data.deliveryData : []);
   };
 
@@ -172,6 +176,35 @@ export const DataProvider = ({ children }) => {
     await saveState({ plans: next });
   };
 
+  const publishPlan = async (planId, newProduct) => {
+    let nextProducts;
+    let nextPlans;
+
+    // Use functional updates to ensure we are working with the absolute latest state
+    setProducts(prevProducts => {
+      nextProducts = [newProduct, ...prevProducts];
+      return nextProducts;
+    });
+
+    setPlans(prevPlans => {
+      nextPlans = prevPlans.filter((item) => item.id !== planId);
+      return nextPlans;
+    });
+
+    // We must wait for the next event loop tick to ensure the closure variables 
+    // nextProducts and nextPlans are populated by the set state callbacks
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Fallback just in case the async update didn't populate them immediately
+    if (!nextProducts) nextProducts = [newProduct, ...products];
+    if (!nextPlans) nextPlans = plans.filter((item) => item.id !== planId);
+
+    await saveState({ 
+      products: nextProducts, 
+      plans: nextPlans 
+    });
+  };
+
   // Module Actions
   const addModule = async (moduleName) => {
     const newModule = { name: moduleName, id: Date.now().toString() };
@@ -252,6 +285,49 @@ export const DataProvider = ({ children }) => {
     setDeliveryData((prev) => prev.filter((item) => item.id !== id));
   };
 
+  // Timeline Actions
+  const addTimeline = async (timeline) => {
+    let next;
+    setTimelines(prev => {
+      next = [timeline, ...prev];
+      return next;
+    });
+    await saveState({ timelines: next });
+  };
+
+  const updateTimeline = async (updatedTimeline) => {
+    let next;
+    setTimelines(prev => {
+      next = prev.map((item) => (item.id === updatedTimeline.id ? updatedTimeline : item));
+      return next;
+    });
+    await saveState({ timelines: next });
+  };
+
+  const deleteTimeline = async (id) => {
+    let next;
+    setTimelines(prev => {
+      next = prev.filter((item) => item.id !== id);
+      return next;
+    });
+    await saveState({ timelines: next });
+  };
+
+  // Notification Actions
+  const addNotification = async (notification) => {
+    let next;
+    setNotifications(prev => {
+      next = [notification, ...prev];
+      return next;
+    });
+    await saveState({ notifications: next });
+  };
+
+  const clearNotifications = async () => {
+    setNotifications([]);
+    await saveState({ notifications: [] });
+  };
+
   // User Actions
   const addUser = async (user) => {
     const data = await apiFetch('/api/users', {
@@ -275,6 +351,14 @@ export const DataProvider = ({ children }) => {
       }),
     });
     setUsers((prev) => prev.map((u) => (u.id === data.user.id ? data.user : u)));
+  };
+
+  const updateMe = async (updates) => {
+    const data = await apiFetch('/api/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    setCurrentUser(data.user);
   };
 
   const deleteUser = async (id) => {
@@ -306,6 +390,8 @@ export const DataProvider = ({ children }) => {
     setPlans([]);
     setModules([]);
     setCategories([]);
+    setTimelines([]);
+    setNotifications([]);
     setUsers([]);
   };
 
@@ -326,6 +412,7 @@ export const DataProvider = ({ children }) => {
         addPlans,
         updatePlan,
         deletePlan,
+        publishPlan,
         modules,
         addModule,
         deleteModule,
@@ -333,6 +420,13 @@ export const DataProvider = ({ children }) => {
         addCategory,
         updateCategory,
         deleteCategory,
+        timelines,
+        addTimeline,
+        updateTimeline,
+        deleteTimeline,
+        notifications,
+        addNotification,
+        clearNotifications,
         deliveryData,
         loadDeliveryData,
         addDeliveryData,
@@ -341,6 +435,7 @@ export const DataProvider = ({ children }) => {
         users,
         addUser,
         updateUser,
+        updateMe,
         deleteUser,
       }}
     >

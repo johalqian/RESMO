@@ -1,20 +1,33 @@
 import React, { useState, useContext } from 'react';
-import { Card, Button, Input, Tag, Select, Modal, Form, message, Tabs, Upload, DatePicker, Space, Dropdown, Menu, Popconfirm } from 'antd';
-import { PlusOutlined, SearchOutlined, FilterOutlined, UploadOutlined, PictureOutlined, ImportOutlined, DownloadOutlined, FileImageOutlined, MoreOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { Card, Button, Input, Tag, Select, Modal, Form, message, Tabs, Upload, DatePicker, Space, Dropdown, Menu, Popconfirm, Drawer, Timeline, Pagination } from 'antd';
+import { PlusOutlined, SearchOutlined, FilterOutlined, UploadOutlined, PictureOutlined, ImportOutlined, DownloadOutlined, FileImageOutlined, MoreOutlined, DeleteOutlined, EditOutlined, HistoryOutlined } from '@ant-design/icons';
 import { DataContext } from '../context/DataContext';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const { Option } = Select;
 const { TextArea } = Input;
 
 const ProductPlanning = () => {
-  const { plans, addPlan, addPlans, updatePlan, deletePlan, addProduct, modules, categories } = useContext(DataContext);
+  const { plans, addPlan, addPlans, updatePlan, deletePlan, publishPlan, addProduct, modules, categories, timelines, addTimeline, updateTimeline, deleteTimeline, currentUser } = useContext(DataContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [form] = Form.useForm();
   const [previewImage, setPreviewImage] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  
+  // Timeline State
+  const [isTimelineVisible, setIsTimelineVisible] = useState(false);
+  const [currentPlanForTimeline, setCurrentPlanForTimeline] = useState(null);
+  const [timelineSearch, setTimelineSearch] = useState('');
+  const [timelineEditorVisible, setTimelineEditorVisible] = useState(false);
+  const [editingTimelineItem, setEditingTimelineItem] = useState(null);
+  const [timelineForm] = Form.useForm();
+  const [editorContent, setEditorContent] = useState('');
+
+  const hasTimelinePermission = currentUser?.role === 'admin' || currentUser?.role === 'editor';
 
   const handleOk = () => {
     form.validateFields().then(values => {
@@ -88,8 +101,8 @@ const ProductPlanning = () => {
       image: plan.image
     };
     
-    addProduct(newProduct);
-    deletePlan(plan.id);
+    // Use the atomic operation to prevent race conditions
+    publishPlan(plan.id, newProduct);
     message.success('产品发布上市成功，已移动到产品管理');
   };
 
@@ -233,6 +246,67 @@ const ProductPlanning = () => {
     XLSX.writeFile(wb, "产品规划导入模板.xlsx");
   };
 
+  // Timeline Handlers
+  const openTimelineEditor = (item = null) => {
+    setEditingTimelineItem(item);
+    if (item) {
+      setEditorContent(item.content);
+    } else {
+      setEditorContent('');
+    }
+    setTimelineEditorVisible(true);
+  };
+
+  const handleSaveTimeline = () => {
+    if (!editorContent || editorContent.trim() === '<p><br></p>') {
+      message.error('动态内容不能为空');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    
+    if (editingTimelineItem) {
+      updateTimeline({
+        ...editingTimelineItem,
+        content: editorContent,
+        updatedAt: now,
+        updatedBy: currentUser?.username || '未知用户'
+      });
+      message.success('动态更新成功');
+    } else {
+      addTimeline({
+        id: Date.now().toString(),
+        planId: currentPlanForTimeline.id,
+        content: editorContent,
+        createdAt: now,
+        createdBy: currentUser?.username || '未知用户',
+        updatedAt: now
+      });
+      message.success('动态添加成功');
+    }
+    
+    setTimelineEditorVisible(false);
+    setEditingTimelineItem(null);
+    setEditorContent('');
+  };
+
+  const handleDeleteTimeline = (id) => {
+    deleteTimeline(id);
+    message.success('动态已删除');
+  };
+
+  const currentPlanTimelines = timelines
+    .filter(t => t.planId === currentPlanForTimeline?.id)
+    .filter(t => {
+      if (!timelineSearch) return true;
+      const searchLower = timelineSearch.toLowerCase();
+      return (
+        t.content.toLowerCase().includes(searchLower) ||
+        t.createdBy.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
   return (
     <div className="bg-[#f5f5f7] p-6 rounded-lg min-h-screen">
       <div className="flex justify-between items-center mb-6">
@@ -343,6 +417,9 @@ const ProductPlanning = () => {
                        <Dropdown 
                           overlay={
                             <Menu>
+                              <Menu.Item key="timeline" icon={<HistoryOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); setCurrentPlanForTimeline(plan); setIsTimelineVisible(true); }}>
+                                产品动态
+                              </Menu.Item>
                               <Menu.Item key="edit" icon={<EditOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); handleEdit(plan); }}>
                                 编辑
                               </Menu.Item>
@@ -514,6 +591,114 @@ const ProductPlanning = () => {
           </div>
         </Form>
       </Modal>
+
+      {/* Timeline Drawer */}
+      <Drawer
+        title={
+          <div className="flex justify-between items-center pr-8">
+            <span className="font-bold text-lg">产品动态 - {currentPlanForTimeline?.name}</span>
+            {hasTimelinePermission && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => openTimelineEditor()}>
+                新增动态
+              </Button>
+            )}
+          </div>
+        }
+        width={600}
+        placement="right"
+        onClose={() => setIsTimelineVisible(false)}
+        open={isTimelineVisible}
+        className="timeline-drawer"
+      >
+        <div className="mb-6">
+          <Input 
+            placeholder="搜索动态内容或创建人..." 
+            prefix={<SearchOutlined className="text-gray-400" />}
+            value={timelineSearch}
+            onChange={(e) => setTimelineSearch(e.target.value)}
+            allowClear
+          />
+        </div>
+
+        {currentPlanTimelines.length > 0 ? (
+          <Timeline
+            mode="left"
+            items={currentPlanTimelines.map(item => ({
+              color: 'blue',
+              children: (
+                <div className="bg-gray-50 p-4 rounded-lg relative group border border-gray-100 mb-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800">{item.createdBy}</span>
+                      <span className="text-xs text-gray-400">{dayjs(item.createdAt).format('YYYY-MM-DD HH:mm:ss')}</span>
+                    </div>
+                    {hasTimelinePermission && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                        <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openTimelineEditor(item)} />
+                        <Popconfirm
+                          title="确定要删除这条动态吗？"
+                          onConfirm={() => handleDeleteTimeline(item.id)}
+                          okText="确定"
+                          cancelText="取消"
+                        >
+                          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                      </div>
+                    )}
+                  </div>
+                  <div 
+                    className="text-gray-600 prose prose-sm max-w-none mt-2"
+                    dangerouslySetInnerHTML={{ __html: item.content }}
+                  />
+                  {item.updatedAt !== item.createdAt && (
+                    <div className="text-[10px] text-gray-400 mt-2 text-right">
+                      (最后修改于 {dayjs(item.updatedAt).format('YYYY-MM-DD HH:mm:ss')})
+                    </div>
+                  )}
+                </div>
+              ),
+            }))}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <HistoryOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+            <p>暂无产品动态记录</p>
+          </div>
+        )}
+      </Drawer>
+
+      {/* Timeline Editor Modal */}
+      <Modal
+        title={editingTimelineItem ? '编辑产品动态' : '新增产品动态'}
+        open={timelineEditorVisible}
+        onCancel={() => {
+          setTimelineEditorVisible(false);
+          setEditorContent('');
+        }}
+        onOk={handleSaveTimeline}
+        width={600}
+        destroyOnClose
+        okText="保存"
+        cancelText="取消"
+      >
+        <div className="mt-4 mb-8">
+          <ReactQuill 
+            theme="snow" 
+            value={editorContent} 
+            onChange={setEditorContent} 
+            style={{ height: '200px', marginBottom: '40px' }}
+            modules={{
+              toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link'],
+                ['clean']
+              ],
+            }}
+          />
+        </div>
+      </Modal>
+
     </div>
   );
 };

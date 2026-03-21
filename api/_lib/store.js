@@ -25,6 +25,22 @@ const defaultState = () => ({
     { name: '净水', id: 'water' },
   ],
   categories: [],
+  notifications: [
+    {
+      id: 'mock-note-1',
+      type: 'system',
+      title: '系统升级通知',
+      content: 'RESMO PMS V1.1.0 已发布，新增产品动态与通知中心，欢迎体验。',
+      date: new Date().toISOString()
+    },
+    {
+      id: 'mock-note-2',
+      type: 'product',
+      title: '产品规划上新',
+      content: '【卫浴】模块新增了一个重点规划产品，请相关人员注意查看。',
+      date: new Date(Date.now() - 86400000).toISOString()
+    }
+  ]
 });
 
 export const publicUser = (u) => ({
@@ -32,6 +48,8 @@ export const publicUser = (u) => ({
   username: u.username,
   role: u.role,
   createTime: u.createTime,
+  lastSeenVersion: u.lastSeenVersion,
+  readNotifications: u.readNotifications || [],
 });
 
 export const loadStore = async () => {
@@ -59,6 +77,7 @@ export const loadStore = async () => {
     // Only use base modules if stored modules is missing or empty
     modules: Array.isArray(stored.modules) && stored.modules.length > 0 ? stored.modules : base.modules,
     categories: Array.isArray(stored.categories) ? stored.categories : [],
+    notifications: Array.isArray(stored.notifications) && stored.notifications.length > 0 ? stored.notifications : base.notifications,
   };
 };
 
