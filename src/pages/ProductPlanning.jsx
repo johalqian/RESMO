@@ -11,7 +11,7 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const ProductPlanning = () => {
-  const { plans, addPlan, addPlans, updatePlan, deletePlan, publishPlan, addProduct, modules, categories, timelines, addTimeline, updateTimeline, deleteTimeline, currentUser } = useContext(DataContext);
+  const { plans, addPlan, addPlans, updatePlan, deletePlan, publishPlan, modules, categories, timelines, addTimeline, updateTimeline, deleteTimeline, currentUser } = useContext(DataContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [form] = Form.useForm();
@@ -86,7 +86,7 @@ const ProductPlanning = () => {
     message.success('规划已删除');
   };
 
-  const handlePublish = (plan) => {
+  const handlePublish = async (plan) => {
     const newProduct = {
       key: Date.now().toString(),
       name: plan.name,
@@ -100,10 +100,13 @@ const ProductPlanning = () => {
       desc: plan.desc,
       image: plan.image
     };
-    
-    // Use the atomic operation to prevent race conditions
-    publishPlan(plan.id, newProduct);
-    message.success('产品发布上市成功，已移动到产品管理');
+
+    try {
+      await publishPlan(plan.id, newProduct);
+      message.success('产品发布上市成功，已移动到产品管理');
+    } catch (e) {
+      message.error(`发布失败：${e?.message || '未知错误'}`);
+    }
   };
 
   const showModal = () => {

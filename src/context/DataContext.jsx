@@ -165,32 +165,15 @@ export const DataProvider = ({ children }) => {
   };
 
   const publishPlan = async (planId, newProduct) => {
-    let nextProducts;
-    let nextPlans;
-
-    // Use functional updates to ensure we are working with the absolute latest state
-    setProducts(prevProducts => {
-      nextProducts = [newProduct, ...prevProducts];
-      return nextProducts;
+    const data = await apiFetch('/api/plans/publish', {
+      method: 'POST',
+      body: JSON.stringify({
+        planId,
+        product: newProduct,
+      }),
     });
-
-    setPlans(prevPlans => {
-      nextPlans = prevPlans.filter((item) => item.id !== planId);
-      return nextPlans;
-    });
-
-    // We must wait for the next event loop tick to ensure the closure variables 
-    // nextProducts and nextPlans are populated by the set state callbacks
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    // Fallback just in case the async update didn't populate them immediately
-    if (!nextProducts) nextProducts = [newProduct, ...products];
-    if (!nextPlans) nextPlans = plans.filter((item) => item.id !== planId);
-
-    await saveState({ 
-      products: nextProducts, 
-      plans: nextPlans 
-    });
+    setProducts(Array.isArray(data.products) ? data.products : []);
+    setPlans(Array.isArray(data.plans) ? data.plans : []);
   };
 
   // Module Actions
