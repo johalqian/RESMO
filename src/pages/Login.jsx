@@ -26,15 +26,16 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#f0f2f5] flex-col gap-4">
-      <Card className="w-96 shadow-lg rounded-xl">
+    <div
+      className="flex items-center justify-center min-h-screen flex-col gap-4 bg-center bg-cover bg-no-repeat"
+      style={{ backgroundImage: "linear-gradient(rgba(0,39,64,0.35), rgba(0,39,64,0.35)), url('/assets/BG.png')" }}
+    >
+      <Card className="w-[460px] max-w-[92vw] shadow-2xl rounded-2xl border border-white/60 bg-white/90 backdrop-blur-sm">
         <div className="text-center mb-8 flex flex-col items-center">
-          <img src={logoUrl} alt="RESMO Logo" className="h-28 mb-3 object-contain" />
-          <div className="flex items-center gap-2 justify-center">
-            <h1 className="text-lg font-bold text-gray-800">RESMO PMS</h1>
-            <span className="text-gray-300">|</span>
-            <p className="text-sm text-gray-500 font-medium m-0">产品管理系统</p>
+          <div className="h-[200px] flex items-center justify-center mb-4">
+            <img src={logoUrl} alt="RESMO Logo" className="h-[200px] object-contain" />
           </div>
+          <h1 className="text-3xl font-bold text-gray-800 tracking-widest m-0">产品管理系统</h1>
         </div>
 
         <Form

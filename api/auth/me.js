@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { sendJson, readJson, methodNotAllowed } from '../_lib/http.js';
 import { getAuthUser } from '../_lib/auth.js';
 import { ensureAdmin, loadStore, saveStore, publicUser } from '../_lib/store.js';
@@ -33,6 +34,14 @@ export default async function handler(req, res) {
     
     if (Array.isArray(body.readNotifications)) {
       store.users[idx].readNotifications = body.readNotifications;
+    }
+
+    if (body.oldPassword && body.newPassword) {
+      const match = await bcrypt.compare(body.oldPassword, store.users[idx].passwordHash);
+      if (!match) {
+        return sendJson(res, 400, { message: 'invalid_old_password' });
+      }
+      store.users[idx].passwordHash = await bcrypt.hash(body.newPassword, 10);
     }
 
     await saveStore(store);

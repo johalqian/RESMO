@@ -1,5 +1,5 @@
 import React, { useState, useContext, useRef, useEffect } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Breadcrumb, message, Modal, Badge, List, Button, Typography, Tag } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Breadcrumb, message, Modal, Badge, List, Button, Typography, Tag, Form, Input } from 'antd';
 import {
   AppstoreOutlined,
   UnorderedListOutlined,
@@ -15,7 +15,8 @@ import {
   NotificationOutlined,
   SoundOutlined,
   ThunderboltOutlined,
-  CheckOutlined
+  CheckOutlined,
+  KeyOutlined
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -204,12 +205,55 @@ const MainLayout = () => {
     navigate('/login');
   };
 
+  // Profile & Password State
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [passwordForm] = Form.useForm();
+
+  const handleOpenProfile = () => {
+    setProfileModalVisible(true);
+    passwordForm.resetFields();
+  };
+
+  const handleUpdatePassword = async () => {
+    try {
+      const values = await passwordForm.validateFields();
+      if (values.newPassword !== values.confirmPassword) {
+        message.error('两次输入的新密码不一致');
+        return;
+      }
+      
+      // We pass oldPassword and newPassword to updateMe which calls PUT /api/auth/me
+      await updateMe({ 
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword 
+      });
+      
+      message.success('密码修改成功，请妥善保管新密码');
+      setProfileModalVisible(false);
+    } catch (e) {
+      console.error(e);
+      // The API error will usually be caught and logged by apiFetch, but we can also show a generic message or handle specific 400s if needed
+      // Currently apiFetch in DataContext just logs, but let's assume if it fails it might throw or not resolve properly.
+      // If we need to catch specific 'invalid_old_password', we'd need to modify apiFetch to throw.
+      // For now, if it didn't crash, we assume success or it was handled.
+      // Wait, apiFetch throws if res.ok is false!
+      if (e.message === 'invalid_old_password') {
+        message.error('原密码不正确');
+      } else if (e.message) {
+        // Only show if it's an Error object with a specific string we can show, else generic
+        message.error('密码修改失败，请检查原密码是否正确');
+      }
+    }
+  };
+
   const userMenu = (
     <Menu
       items={[
         {
           key: 'profile',
-          label: '个人中心',
+          label: '修改密码',
+          icon: <KeyOutlined />,
+          onClick: handleOpenProfile,
         },
         {
           key: 'logout',
@@ -530,6 +574,55 @@ const MainLayout = () => {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Profile / Change Password Modal */}
+      <Modal
+        title="修改密码"
+        open={profileModalVisible}
+        onOk={handleUpdatePassword}
+        onCancel={() => setProfileModalVisible(false)}
+        okText="确认修改"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <Form form={passwordForm} layout="vertical" className="mt-4">
+          <Form.Item
+            name="oldPassword"
+            label="原密码"
+            rules={[{ required: true, message: '请输入原密码' }]}
+          >
+            <Input.Password placeholder="请输入当前使用的密码" />
+          </Form.Item>
+          <Form.Item
+            name="newPassword"
+            label="新密码"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 6, message: '密码长度至少为6位' }
+            ]}
+          >
+            <Input.Password placeholder="请输入新密码（至少6位）" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="确认新密码"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: '请再次输入新密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('两次输入的新密码不一致!'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="请再次输入新密码" />
+          </Form.Item>
+        </Form>
       </Modal>
 
     </Layout>
