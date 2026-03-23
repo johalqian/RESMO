@@ -37,17 +37,43 @@ const MainLayout = () => {
 
   // Upgrade Modal State
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+  const [timelineUpdatesModalVisible, setTimelineUpdatesModalVisible] = useState(false);
+  const [newTimelines, setNewTimelines] = useState([]);
 
   useEffect(() => {
-    if (currentUser && currentUser.lastSeenVersion !== SYSTEM_VERSION) {
-      setUpgradeModalVisible(true);
+    if (currentUser) {
+      if (currentUser.lastSeenVersion !== SYSTEM_VERSION) {
+        setUpgradeModalVisible(true);
+      } else {
+        // Only show timeline updates if not showing system upgrade to avoid modal stack
+        const lastSeen = currentUser.lastSeenTimelineTime ? new Date(currentUser.lastSeenTimelineTime).getTime() : 0;
+        const recentTimelines = timelines.filter(t => new Date(t.createdAt).getTime() > lastSeen);
+        if (recentTimelines.length > 0) {
+          setNewTimelines(recentTimelines.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+          setTimelineUpdatesModalVisible(true);
+        }
+      }
     }
-  }, [currentUser]);
+  }, [currentUser, timelines]);
 
   const handleCloseUpgradeModal = async () => {
     setUpgradeModalVisible(false);
     if (currentUser) {
       await updateMe({ lastSeenVersion: SYSTEM_VERSION });
+      // After closing upgrade, check timelines
+      const lastSeen = currentUser.lastSeenTimelineTime ? new Date(currentUser.lastSeenTimelineTime).getTime() : 0;
+      const recentTimelines = timelines.filter(t => new Date(t.createdAt).getTime() > lastSeen);
+      if (recentTimelines.length > 0) {
+        setNewTimelines(recentTimelines.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+        setTimelineUpdatesModalVisible(true);
+      }
+    }
+  };
+
+  const handleCloseTimelineUpdatesModal = async () => {
+    setTimelineUpdatesModalVisible(false);
+    if (currentUser) {
+      await updateMe({ lastSeenTimelineTime: new Date().toISOString() });
     }
   };
 
@@ -573,6 +599,53 @@ const MainLayout = () => {
               </ul>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Timeline Updates Modal */}
+      <Modal
+        open={timelineUpdatesModalVisible}
+        onCancel={handleCloseTimelineUpdatesModal}
+        title={
+          <div className="flex items-center gap-2 text-lg font-bold">
+            <ThunderboltOutlined className="text-blue-500" />
+            产品动态更新提醒
+          </div>
+        }
+        footer={[
+          <Button key="close" type="primary" onClick={handleCloseTimelineUpdatesModal} className="w-full">
+            我知道了
+          </Button>
+        ]}
+        width={600}
+        destroyOnClose
+      >
+        <div className="py-4">
+          <p className="text-gray-500 mb-4">自您上次访问以来，系统共有 <strong className="text-blue-500">{newTimelines.length}</strong> 条新的产品动态：</p>
+          <div className="max-h-[400px] overflow-y-auto pr-2">
+            <List
+              itemLayout="vertical"
+              dataSource={newTimelines}
+              renderItem={item => (
+                <List.Item className="bg-gray-50 mb-3 p-4 rounded-lg border border-gray-100">
+                  <List.Item.Meta
+                    title={
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-800">{item.planName || '未知产品'}</span>
+                        <span className="text-xs text-gray-400">{dayjs(item.createdAt).format('MM-DD HH:mm')}</span>
+                      </div>
+                    }
+                    description={
+                      <div className="mt-1">
+                        <div className="text-sm text-gray-600 prose prose-sm max-w-none line-clamp-3 [&>img]:hidden" dangerouslySetInnerHTML={{ __html: item.content }} />
+                        <div className="mt-2 text-xs text-gray-400">更新人: {item.createdBy}</div>
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </div>
         </div>
       </Modal>
 

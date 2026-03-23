@@ -280,6 +280,7 @@ const ProductPlanning = () => {
       addTimeline({
         id: Date.now().toString(),
         planId: currentPlanForTimeline.id,
+        planName: currentPlanForTimeline.name,
         content: editorContent,
         createdAt: now,
         createdBy: currentUser?.username || '未知用户',
@@ -694,7 +695,7 @@ const ProductPlanning = () => {
               toolbar: [
                 ['bold', 'italic', 'underline', 'strike'],
                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link'],
+                ['link', 'image'],
                 ['clean']
               ],
             }}

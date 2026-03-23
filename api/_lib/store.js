@@ -49,6 +49,7 @@ export const publicUser = (u) => ({
   role: u.role,
   createTime: u.createTime,
   lastSeenVersion: u.lastSeenVersion,
+  lastSeenTimelineTime: u.lastSeenTimelineTime,
   readNotifications: u.readNotifications || [],
 });
 

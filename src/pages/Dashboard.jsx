@@ -1,11 +1,17 @@
-import React, { useContext } from 'react';
-import { Card, Col, Row, Statistic, Tag, Table, List, Avatar } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import React, { useContext, useState } from 'react';
+import { Card, Col, Row, Statistic, Tag, Table, List, Avatar, Typography, Drawer, Button } from 'antd';
+import { ArrowUpOutlined, ArrowDownOutlined, HistoryOutlined } from '@ant-design/icons';
 import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { DataContext } from '../context/DataContext';
+import dayjs from 'dayjs';
+
+const { Paragraph } = Typography;
 
 const Dashboard = () => {
-  const { products, plans, modules } = useContext(DataContext);
+  const { products, plans, modules, timelines } = useContext(DataContext);
+
+  // Timeline Drawer State
+  const [timelineDrawerVisible, setTimelineDrawerVisible] = useState(false);
 
   // 1. Calculate Statistics
   const totalOnSale = products.filter(p => p.status === '在售').length;
@@ -208,15 +214,94 @@ const Dashboard = () => {
         </Col>
       </Row>
 
-      <Card title="最新产品动态" extra={<a href="#">查看全部</a>}>
-        <Table 
-          columns={columns} 
-          dataSource={latestProducts} 
-          pagination={false} 
-          rowKey="key"
-          locale={{ emptyText: '暂无产品数据' }}
-        />
-      </Card>
+      <Row gutter={16}>
+        <Col span={16}>
+          <Card title="最新上架产品" extra={<a href="/products">查看全部</a>}>
+            <Table 
+              columns={columns} 
+              dataSource={latestProducts} 
+              pagination={false} 
+              rowKey="key"
+              locale={{ emptyText: '暂无产品数据' }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card 
+            title="最新产品动态" 
+            extra={<a href="#" onClick={(e) => { e.preventDefault(); setTimelineDrawerVisible(true); }}>查看全部</a>}
+            className="h-full"
+            bodyStyle={{ padding: '0 24px' }}
+          >
+            <List
+              itemLayout="vertical"
+              dataSource={[...timelines].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)}
+              locale={{ emptyText: '暂无最新动态' }}
+              renderItem={item => (
+                <List.Item className="py-4 border-b border-gray-100 last:border-0">
+                  <List.Item.Meta
+                    title={
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-800 text-sm">{item.planName || '未知产品'}</span>
+                        <span className="text-xs text-gray-400">{dayjs(item.createdAt).format('MM-DD HH:mm')}</span>
+                      </div>
+                    }
+                    description={
+                      <div className="mt-1">
+                        <Paragraph ellipsis={{ rows: 2 }} className="text-sm text-gray-500 m-0" style={{ marginBottom: 0 }}>
+                          <div dangerouslySetInnerHTML={{ __html: item.content }} className="prose prose-sm max-w-none line-clamp-2 [&>img]:hidden" />
+                        </Paragraph>
+                        <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                          <Avatar size="small" className="bg-blue-50 text-blue-500">{item.createdBy?.charAt(0)?.toUpperCase() || 'U'}</Avatar>
+                          <span>{item.createdBy}</span>
+                        </div>
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Global Timeline Drawer */}
+      <Drawer
+        title={<div className="font-bold text-lg">全系统产品动态</div>}
+        width={600}
+        placement="right"
+        onClose={() => setTimelineDrawerVisible(false)}
+        open={timelineDrawerVisible}
+      >
+        {timelines.length > 0 ? (
+          <List
+            itemLayout="vertical"
+            dataSource={[...timelines].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))}
+            renderItem={item => (
+              <List.Item className="bg-gray-50 mb-4 p-4 rounded-lg border border-gray-100">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-800 text-base">{item.planName || '未知产品'}</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-gray-500 font-medium">{item.createdBy}</span>
+                      <span className="text-xs text-gray-400">{dayjs(item.createdAt).format('YYYY-MM-DD HH:mm:ss')}</span>
+                    </div>
+                  </div>
+                </div>
+                <div 
+                  className="text-gray-600 prose prose-sm max-w-none bg-white p-4 rounded border border-gray-100"
+                  dangerouslySetInnerHTML={{ __html: item.content }}
+                />
+              </List.Item>
+            )}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <HistoryOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+            <p>暂无产品动态记录</p>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 };

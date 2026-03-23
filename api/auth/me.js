@@ -32,6 +32,10 @@ export default async function handler(req, res) {
       store.users[idx].lastSeenVersion = body.lastSeenVersion;
     }
     
+    if (body.lastSeenTimelineTime !== undefined) {
+      store.users[idx].lastSeenTimelineTime = body.lastSeenTimelineTime;
+    }
+    
     if (Array.isArray(body.readNotifications)) {
       store.users[idx].readNotifications = body.readNotifications;
     }
