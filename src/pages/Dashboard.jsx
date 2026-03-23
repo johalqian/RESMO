@@ -235,7 +235,7 @@ const Dashboard = () => {
           >
             <List
               itemLayout="vertical"
-              dataSource={[...timelines].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)}
+              dataSource={[...(Array.isArray(timelines) ? timelines : [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)}
               locale={{ emptyText: '暂无最新动态' }}
               renderItem={item => (
                 <List.Item className="py-4 border-b border-gray-100 last:border-0">
@@ -273,7 +273,7 @@ const Dashboard = () => {
         onClose={() => setTimelineDrawerVisible(false)}
         open={timelineDrawerVisible}
       >
-        {timelines.length > 0 ? (
+        {Array.isArray(timelines) && timelines.length > 0 ? (
           <List
             itemLayout="vertical"
             dataSource={[...timelines].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))}

@@ -47,7 +47,8 @@ const MainLayout = () => {
       } else {
         // Only show timeline updates if not showing system upgrade to avoid modal stack
         const lastSeen = currentUser.lastSeenTimelineTime ? new Date(currentUser.lastSeenTimelineTime).getTime() : 0;
-        const recentTimelines = timelines.filter(t => new Date(t.createdAt).getTime() > lastSeen);
+        const safeTimelines = Array.isArray(timelines) ? timelines : [];
+        const recentTimelines = safeTimelines.filter(t => new Date(t.createdAt).getTime() > lastSeen);
         if (recentTimelines.length > 0) {
           setNewTimelines(recentTimelines.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
           setTimelineUpdatesModalVisible(true);
@@ -62,7 +63,8 @@ const MainLayout = () => {
       await updateMe({ lastSeenVersion: SYSTEM_VERSION });
       // After closing upgrade, check timelines
       const lastSeen = currentUser.lastSeenTimelineTime ? new Date(currentUser.lastSeenTimelineTime).getTime() : 0;
-      const recentTimelines = timelines.filter(t => new Date(t.createdAt).getTime() > lastSeen);
+      const safeTimelines = Array.isArray(timelines) ? timelines : [];
+      const recentTimelines = safeTimelines.filter(t => new Date(t.createdAt).getTime() > lastSeen);
       if (recentTimelines.length > 0) {
         setNewTimelines(recentTimelines.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         setTimelineUpdatesModalVisible(true);
