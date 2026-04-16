@@ -232,9 +232,26 @@ const ProductMatrixContent = () => {
   const beforeUpload = (file) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = () => {
-      setPreviewImage(reader.result);
-      form.setFieldsValue({ image: reader.result });
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const max = 800;
+        if (width > max || height > max) {
+          if (width > height) { height = Math.round(height * max / width); width = max; }
+          else { width = Math.round(width * max / height); height = max; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setPreviewImage(dataUrl);
+        form.setFieldsValue({ image: dataUrl });
+      };
     };
     return false;
   };

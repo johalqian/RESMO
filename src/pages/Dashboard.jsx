@@ -13,30 +13,43 @@ const Dashboard = () => {
   // Timeline Drawer State
   const [timelineDrawerVisible, setTimelineDrawerVisible] = useState(false);
 
+  // Safe fallbacks
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safePlans = Array.isArray(plans) ? plans : [];
+  const safeModules = Array.isArray(modules) ? modules : [];
+  const safeTimelines = Array.isArray(timelines) ? timelines : [];
+
+  const getTimelinePlanName = (item) => {
+    if (item?.planName) return item.planName;
+    const matchedPlan = safePlans.find((p) => String(p.id) === String(item?.planId));
+    if (matchedPlan?.name) return matchedPlan.name;
+    return '未命名产品';
+  };
+
   // 1. Calculate Statistics
-  const totalOnSale = products.filter(p => p.status === '在售').length;
-  const totalPlanning = plans.filter(p => p.status === '规划中').length;
-  const totalSCore = products.filter(p => p.grade === 'S级' || p.grade === 'S').length; 
-  const totalAssets = products.length + plans.length;
+  const totalOnSale = safeProducts.filter(p => p.status === '在售').length;
+  const totalPlanning = safePlans.filter(p => p.status === '规划中').length;
+  const totalSCore = safeProducts.filter(p => p.grade === 'S级' || p.grade === 'S').length; 
+  const totalAssets = safeProducts.length + safePlans.length;
 
   // 2. Prepare Chart Data
   // Module Distribution (On Sale Products)
-  const dataModule = modules.map((mod, index) => {
+  const dataModule = safeModules.map((mod, index) => {
     // Generate colors dynamically or cycle through a palette
     const colors = ['#1890ff', '#13c2c2', '#722ed1', '#eb2f96', '#fa8c16', '#a0d911'];
     const color = colors[index % colors.length];
     
     return {
       name: mod.name,
-      value: products.filter(p => p.status === '在售' && p.module === mod.name).length,
+      value: safeProducts.filter(p => p.status === '在售' && p.module === mod.name).length,
       color: color
     };
   }).filter(item => item.value > 0);
 
   // Lifecycle Status (All Products: Products + Plans)
-  const onSaleCount = products.filter(p => p.status === '在售').length;
-  const offShelfCount = products.filter(p => p.status === '下市').length;
-  const planningCount = plans.filter(p => p.status === '规划中').length + products.filter(p => p.status === '规划中').length;
+  const onSaleCount = safeProducts.filter(p => p.status === '在售').length;
+  const offShelfCount = safeProducts.filter(p => p.status === '下市').length;
+  const planningCount = safePlans.filter(p => p.status === '规划中').length + safeProducts.filter(p => p.status === '规划中').length;
 
   const dataLifecycle = [
     { name: '规划中', value: planningCount },
@@ -45,9 +58,9 @@ const Dashboard = () => {
   ];
 
   // Grading Distribution (On Sale Products)
-  const sGradeCount = products.filter(p => p.status === '在售' && (p.grade === 'S级' || p.grade === 'S')).length;
-  const aGradeCount = products.filter(p => p.status === '在售' && (p.grade === 'A级' || p.grade === 'A')).length;
-  const bGradeCount = products.filter(p => p.status === '在售' && (p.grade === 'B级' || p.grade === 'B')).length;
+  const sGradeCount = safeProducts.filter(p => p.status === '在售' && (p.grade === 'S级' || p.grade === 'S')).length;
+  const aGradeCount = safeProducts.filter(p => p.status === '在售' && (p.grade === 'A级' || p.grade === 'A')).length;
+  const bGradeCount = safeProducts.filter(p => p.status === '在售' && (p.grade === 'B级' || p.grade === 'B')).length;
 
   const dataGrading = [
     { name: 'S级', value: sGradeCount },
@@ -56,7 +69,7 @@ const Dashboard = () => {
   ];
 
   // 3. Latest Products (Top 5 from Products list)
-  const latestProducts = products.slice(0, 5);
+  const latestProducts = safeProducts.slice(0, 5);
 
   const columns = [
     {
@@ -235,14 +248,14 @@ const Dashboard = () => {
           >
             <List
               itemLayout="vertical"
-              dataSource={[...(Array.isArray(timelines) ? timelines : [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)}
+              dataSource={[...safeTimelines].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)}
               locale={{ emptyText: '暂无最新动态' }}
               renderItem={item => (
                 <List.Item className="py-4 border-b border-gray-100 last:border-0">
                   <List.Item.Meta
                     title={
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-800 text-sm">{item.planName || '未知产品'}</span>
+                        <span className="font-bold text-gray-800 text-sm">{getTimelinePlanName(item)}</span>
                         <span className="text-xs text-gray-400">{dayjs(item.createdAt).format('MM-DD HH:mm')}</span>
                       </div>
                     }
@@ -273,15 +286,15 @@ const Dashboard = () => {
         onClose={() => setTimelineDrawerVisible(false)}
         open={timelineDrawerVisible}
       >
-        {Array.isArray(timelines) && timelines.length > 0 ? (
+        {safeTimelines.length > 0 ? (
           <List
             itemLayout="vertical"
-            dataSource={[...timelines].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))}
+            dataSource={[...safeTimelines].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))}
             renderItem={item => (
               <List.Item className="bg-gray-50 mb-4 p-4 rounded-lg border border-gray-100">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex flex-col">
-                    <span className="font-bold text-gray-800 text-base">{item.planName || '未知产品'}</span>
+                    <span className="font-bold text-gray-800 text-base">{getTimelinePlanName(item)}</span>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-gray-500 font-medium">{item.createdBy}</span>
                       <span className="text-xs text-gray-400">{dayjs(item.createdAt).format('YYYY-MM-DD HH:mm:ss')}</span>

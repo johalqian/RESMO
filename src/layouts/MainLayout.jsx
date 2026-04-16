@@ -32,13 +32,21 @@ const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { products, plans, modules, categories, deliveryData, users, logout, currentUser, updateMe, notifications, clearNotifications } = useContext(DataContext);
+  const { products, plans, modules, categories, deliveryData, users, logout, currentUser, updateMe, notifications, clearNotifications, timelines } = useContext(DataContext);
   const restoreInputRef = useRef(null);
 
   // Upgrade Modal State
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [timelineUpdatesModalVisible, setTimelineUpdatesModalVisible] = useState(false);
   const [newTimelines, setNewTimelines] = useState([]);
+
+  const getTimelinePlanName = (item) => {
+    if (item?.planName) return item.planName;
+    const safePlans = Array.isArray(plans) ? plans : [];
+    const matchedPlan = safePlans.find((p) => String(p.id) === String(item?.planId));
+    if (matchedPlan?.name) return matchedPlan.name;
+    return '未命名产品';
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -84,7 +92,8 @@ const MainLayout = () => {
   const readNotifications = currentUser?.readNotifications || [];
   
   // Sort notifications by date desc
-  const sortedNotifications = [...notifications].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
+  const sortedNotifications = [...safeNotifications].sort((a, b) => new Date(b.date) - new Date(a.date));
   const unreadCount = sortedNotifications.filter(n => !readNotifications.includes(n.id)).length;
 
   const handleMarkAsRead = async (id) => {
@@ -633,7 +642,7 @@ const MainLayout = () => {
                   <List.Item.Meta
                     title={
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-800">{item.planName || '未知产品'}</span>
+                        <span className="font-bold text-gray-800">{getTimelinePlanName(item)}</span>
                         <span className="text-xs text-gray-400">{dayjs(item.createdAt).format('MM-DD HH:mm')}</span>
                       </div>
                     }

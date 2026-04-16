@@ -36,6 +36,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
+    try {
     if (auth.role !== 'admin' && auth.role !== 'editor') {
       return sendJson(res, 403, { message: 'forbidden' });
     }
@@ -87,6 +88,10 @@ export default async function handler(req, res) {
     // console.log('Verified persistence plans count:', verify.plans.length);
     
     return sendJson(res, 200, { ok: true });
+    } catch (err) {
+      console.error('PUT Error:', err);
+      return sendJson(res, 500, { message: err.message, stack: err.stack });
+    }
   }
 
   return methodNotAllowed(res);

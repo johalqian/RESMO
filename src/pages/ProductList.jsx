@@ -38,7 +38,13 @@ const ProductList = () => {
   // State for filtering
   const [filterModule, setFilterModule] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [pageSize, setPageSize] = useState(5);
+
+  // Safe fallback
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeModules = Array.isArray(modules) ? modules : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
 
   const handleDelete = (key) => {
     deleteProduct(key);
@@ -325,15 +331,21 @@ const ProductList = () => {
   };
 
   // Dynamic filter logic
-  const filteredProducts = products.filter(p => {
-    if (filterModule !== 'all' && p.module !== filterModule) return false;
-    // Category filtering logic can be added here if needed, currently only module filter is connected
-    return true;
+  const filteredProducts = safeProducts.filter(product => {
+    const matchModule = filterModule === 'all' || product.module === filterModule;
+    const matchCategory = filterCategory === 'all' || product.category === filterCategory;
+    const matchStatus = filterStatus === 'all' || product.status === filterStatus;
+    return matchModule && matchCategory && matchStatus;
   });
 
   // Get categories for current selected module in form
   const currentModule = Form.useWatch('module', form);
-  const availableCategories = categories.filter(c => c.module === currentModule);
+  const availableCategories = safeCategories.filter(c => c.module === currentModule);
+
+  // Get categories for filter based on selected module filter
+  const filterAvailableCategories = filterModule === 'all' 
+    ? safeCategories 
+    : safeCategories.filter(c => c.module === filterModule);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -359,20 +371,35 @@ const ProductList = () => {
           prefix={<SearchOutlined className="text-gray-400" />} 
           style={{ width: 300 }} 
         />
-        <Select defaultValue="all" style={{ width: 120 }} onChange={setFilterModule}>
+        <Select 
+          defaultValue="all" 
+          style={{ width: 120 }} 
+          onChange={(val) => {
+            setFilterModule(val);
+            setFilterCategory('all');
+          }}
+        >
           <Option value="all">所有模块</Option>
-          {modules.map(m => (
+          {safeModules.map(m => (
             <Option key={m.name} value={m.name}>{m.name}</Option>
           ))}
         </Select>
-        <Select defaultValue="all" style={{ width: 120 }}>
+        <Select 
+          value={filterCategory} 
+          style={{ width: 150 }} 
+          onChange={setFilterCategory}
+          placeholder="筛选品类"
+        >
           <Option value="all">所有品类</Option>
-          {/* We could dynamically populate this based on filterModule too */}
+          {filterAvailableCategories.map(c => (
+            <Option key={c.id || c.name} value={c.name}>{c.name}</Option>
+          ))}
         </Select>
-        <Select defaultValue="all" style={{ width: 120 }}>
+        <Select value={filterStatus} style={{ width: 120 }} onChange={setFilterStatus}>
           <Option value="all">所有状态</Option>
-          <Option value="onsale">在售</Option>
-          <Option value="planning">规划中</Option>
+          <Option value="在售">在售</Option>
+          <Option value="规划中">规划中</Option>
+          <Option value="下市">下市</Option>
         </Select>
         <Button icon={<FilterOutlined />} />
       </div>
@@ -419,12 +446,12 @@ const ProductList = () => {
               </Form.Item>
 
               <Form.Item label="所属模块" name="module" rules={[{ required: true }]}>
-                <Select placeholder="选择模块" onChange={() => form.setFieldsValue({ category: undefined })}>
-                  {modules.map(m => (
-                    <Option key={m.name} value={m.name}>{m.name}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
+                  <Select placeholder="请选择模块" onChange={() => form.setFieldsValue({ category: undefined })}>
+                    {safeModules.map(m => (
+                      <Option key={m.id} value={m.name}>{m.name}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
               <Form.Item label="产品品类" name="category" rules={[{ required: true }]}>
                 <Select placeholder="请选择品类">
                   {availableCategories.map(c => (

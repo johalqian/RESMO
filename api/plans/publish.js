@@ -7,6 +7,9 @@ export default async function handler(req, res) {
 
   const auth = getAuthUser(req);
   if (!auth) return sendJson(res, 401, { message: 'unauthorized' });
+  if (auth.role !== 'admin' && auth.role !== 'editor') {
+    return sendJson(res, 403, { message: 'forbidden' });
+  }
 
   let body;
   try {
@@ -25,12 +28,13 @@ export default async function handler(req, res) {
   let store = await loadStore();
   store = await ensureAdmin(store);
 
-  const planExists = store.plans.some((p) => String(p.id) === planId);
+  const safePlans = Array.isArray(store.plans) ? store.plans : [];
+  const planExists = safePlans.some((p) => String(p.id) === planId);
   if (!planExists) {
     return sendJson(res, 404, { message: 'plan_not_found' });
   }
 
-  store.plans = store.plans.filter((p) => String(p.id) !== planId);
+  store.plans = safePlans.filter((p) => String(p.id) !== planId);
   store.products = [product, ...(Array.isArray(store.products) ? store.products : [])];
 
   await saveStore(store);

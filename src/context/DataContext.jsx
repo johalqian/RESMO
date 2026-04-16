@@ -68,7 +68,7 @@ export const DataProvider = ({ children }) => {
 
   const saveState = async (next) => {
     try {
-      const res = await apiFetch('/api/state', {
+      await apiFetch('/api/state', {
         method: 'PUT',
         body: JSON.stringify(next),
       });
@@ -79,6 +79,10 @@ export const DataProvider = ({ children }) => {
       if (e.status === 413) {
         console.warn("Payload too large! Data might not be saved.");
       }
+      try {
+        await loadState();
+      } catch {}
+      throw e;
     }
   };
 
@@ -165,15 +169,22 @@ export const DataProvider = ({ children }) => {
   };
 
   const publishPlan = async (planId, newProduct) => {
-    const data = await apiFetch('/api/plans/publish', {
-      method: 'POST',
-      body: JSON.stringify({
-        planId,
-        product: newProduct,
-      }),
-    });
-    setProducts(Array.isArray(data.products) ? data.products : []);
-    setPlans(Array.isArray(data.plans) ? data.plans : []);
+    try {
+      const data = await apiFetch('/api/plans/publish', {
+        method: 'POST',
+        body: JSON.stringify({
+          planId,
+          product: newProduct,
+        }),
+      });
+      setProducts(Array.isArray(data.products) ? data.products : []);
+      setPlans(Array.isArray(data.plans) ? data.plans : []);
+    } catch (e) {
+      if (e?.message === 'plan_not_found') {
+        await loadState().catch(() => {});
+      }
+      throw e;
+    }
   };
 
   // Module Actions

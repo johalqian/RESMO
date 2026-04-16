@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { Card, Button, Input, Tag, Select, Modal, Form, message, Tabs, Upload, DatePicker, Space, Dropdown, Menu, Popconfirm, Drawer, Timeline, Pagination } from 'antd';
-import { PlusOutlined, SearchOutlined, FilterOutlined, UploadOutlined, PictureOutlined, ImportOutlined, DownloadOutlined, FileImageOutlined, MoreOutlined, DeleteOutlined, EditOutlined, HistoryOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, FilterOutlined, UploadOutlined, PictureOutlined, ImportOutlined, DownloadOutlined, FileImageOutlined, MoreOutlined, DeleteOutlined, EditOutlined, HistoryOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import { DataContext } from '../context/DataContext';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
@@ -17,6 +17,9 @@ const ProductPlanning = () => {
   const [form] = Form.useForm();
   const [previewImage, setPreviewImage] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [deletingPlanId, setDeletingPlanId] = useState(null);
+  const [sortByLaunchDate, setSortByLaunchDate] = useState(false);
   
   // Timeline State
   const [isTimelineVisible, setIsTimelineVisible] = useState(false);
@@ -29,8 +32,11 @@ const ProductPlanning = () => {
 
   const hasTimelinePermission = currentUser?.role === 'admin' || currentUser?.role === 'editor';
 
-  const handleOk = () => {
-    form.validateFields().then(values => {
+  const handleOk = async () => {
+    if (savingPlan) return;
+    setSavingPlan(true);
+    try {
+      const values = await form.validateFields();
       const planData = {
         name: values.name,
         desc: values.desc,
@@ -44,10 +50,10 @@ const ProductPlanning = () => {
       };
 
       if (editingPlan) {
-        updatePlan({ ...editingPlan, ...planData });
+        await updatePlan({ ...editingPlan, ...planData });
         message.success('规划更新成功');
       } else {
-        addPlan({
+        await addPlan({
           id: Date.now(),
           ...planData
         });
@@ -58,9 +64,12 @@ const ProductPlanning = () => {
       setEditingPlan(null);
       form.resetFields();
       setPreviewImage('');
-    }).catch(info => {
-      console.log('Validate Failed:', info);
-    });
+    } catch (e) {
+      if (e?.errorFields) return;
+      message.error(`保存失败：${e?.message || '请稍后重试'}`);
+    } finally {
+      setSavingPlan(false);
+    }
   };
 
   const handleEdit = (plan) => {
@@ -81,9 +90,28 @@ const ProductPlanning = () => {
     setIsModalVisible(true);
   };
 
-  const handleDelete = (id) => {
-    deletePlan(id);
-    message.success('规划已删除');
+  const handleDelete = async (id) => {
+    setDeletingPlanId(id);
+    try {
+      await deletePlan(id);
+      message.success('规划已删除');
+    } catch (e) {
+      message.error(`删除失败：${e?.message || '请稍后重试'}`);
+    } finally {
+      setDeletingPlanId(null);
+    }
+  };
+
+  const confirmDeletePlan = (plan) => {
+    Modal.confirm({
+      title: '确认删除该规划？',
+      content: `产品「${plan?.name || '未命名'}」删除后不可恢复。`,
+      okText: '确认删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: () => handleDelete(plan.id),
+    });
   };
 
   const handlePublish = async (plan) => {
@@ -105,6 +133,10 @@ const ProductPlanning = () => {
       await publishPlan(plan.id, newProduct);
       message.success('产品发布上市成功，已移动到产品管理');
     } catch (e) {
+      if (e?.message === 'plan_not_found') {
+        message.error('发布失败：该规划在服务器不存在，已为您刷新最新数据，请重试');
+        return;
+      }
       message.error(`发布失败：${e?.message || '未知错误'}`);
     }
   };
@@ -119,17 +151,45 @@ const ProductPlanning = () => {
   const beforeUpload = (file) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = () => {
-      setPreviewImage(reader.result);
-      form.setFieldsValue({ image: reader.result });
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const max = 800;
+        if (width > max || height > max) {
+          if (width > height) { height = Math.round(height * max / width); width = max; }
+          else { width = Math.round(width * max / height); height = max; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setPreviewImage(dataUrl);
+        form.setFieldsValue({ image: dataUrl });
+      };
     };
     return false;
   };
 
-  const filteredPlans = plans.filter(plan => {
+  // Safe fallbacks
+  const safePlans = Array.isArray(plans) ? plans : [];
+  const safeModules = Array.isArray(modules) ? modules : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+
+  const filteredPlans = safePlans.filter(plan => {
     if (activeTab === 'all') return true;
     return plan.module === activeTab;
   });
+
+  const getLaunchTimestamp = (plan) => {
+    if (!plan?.date || plan.date === '待定') return -Infinity;
+    const parsed = dayjs(plan.date, ['YYYY/MM/DD', 'YYYY-MM-DD', 'YYYY/M/D'], true);
+    return parsed.isValid() ? parsed.valueOf() : -Infinity;
+  };
 
   // Group plans by category
   const plansByCategory = {};
@@ -143,10 +203,30 @@ const ProductPlanning = () => {
     });
   }
 
+  const categoryEntries = Object.entries(plansByCategory);
+  const getPlanMonthKey = (plan) => {
+    if (!plan?.date || plan.date === '待定') return '待定';
+    const parsed = dayjs(plan.date, ['YYYY/MM/DD', 'YYYY-MM-DD', 'YYYY/M/D'], true);
+    return parsed.isValid() ? parsed.format('YYYY/MM') : '待定';
+  };
+
+  const timelineEntries = [...filteredPlans]
+    .sort((a, b) => getLaunchTimestamp(b) - getLaunchTimestamp(a))
+    .reduce((acc, plan) => {
+      const monthKey = getPlanMonthKey(plan);
+      const last = acc[acc.length - 1];
+      if (!last || last[0] !== monthKey) {
+        acc.push([monthKey, [plan]]);
+      } else {
+        last[1].push(plan);
+      }
+      return acc;
+    }, []);
+
   // Dynamic tabs based on modules
   const tabItems = [
     { key: 'all', label: '全部规划' },
-    ...modules.map(m => ({
+    ...safeModules.map(m => ({
       key: m.name,
       label: `${m.name}规划`
     }))
@@ -154,7 +234,7 @@ const ProductPlanning = () => {
 
   // Get categories for current selected module in form
   const currentModule = Form.useWatch('module', form);
-  const availableCategories = categories.filter(c => c.module === currentModule);
+  const availableCategories = safeCategories.filter(c => c.module === currentModule);
 
   // Excel Import Handler
   const handleExcelImport = (file) => {
@@ -236,7 +316,7 @@ const ProductPlanning = () => {
     // Add Data Validation Instructions (Since fully programmatic data validation in xlsx js style is complex/limited for some formats, we add a guide sheet or comments)
     // We will add a second sheet with valid options for reference.
     const validOptions = [
-      { '字段': '所属模块', '选项': modules.map(m => m.name).join(', ') },
+      { '字段': '所属模块', '选项': safeModules.map(m => m.name).join(', ') },
       { '字段': '分级', '选项': 'S级, A级, B级' },
       { '字段': '价格级', '选项': '高端, 中端, 入门' },
       { '字段': '产品品类', '选项': '请参考各模块下的已有品类' }
@@ -260,7 +340,7 @@ const ProductPlanning = () => {
     setTimelineEditorVisible(true);
   };
 
-  const handleSaveTimeline = () => {
+  const handleSaveTimeline = async () => {
     if (!editorContent || editorContent.trim() === '<p><br></p>') {
       message.error('动态内容不能为空');
       return;
@@ -268,30 +348,35 @@ const ProductPlanning = () => {
 
     const now = new Date().toISOString();
     
-    if (editingTimelineItem) {
-      updateTimeline({
-        ...editingTimelineItem,
-        content: editorContent,
-        updatedAt: now,
-        updatedBy: currentUser?.username || '未知用户'
-      });
-      message.success('动态更新成功');
-    } else {
-      addTimeline({
-        id: Date.now().toString(),
-        planId: currentPlanForTimeline.id,
-        planName: currentPlanForTimeline.name,
-        content: editorContent,
-        createdAt: now,
-        createdBy: currentUser?.username || '未知用户',
-        updatedAt: now
-      });
-      message.success('动态添加成功');
+    try {
+      if (editingTimelineItem) {
+        await updateTimeline({
+          ...editingTimelineItem,
+          planName: currentPlanForTimeline?.name || editingTimelineItem.planName,
+          content: editorContent,
+          updatedAt: now,
+          updatedBy: currentUser?.username || '未知用户'
+        });
+        message.success('动态更新成功');
+      } else {
+        await addTimeline({
+          id: Date.now().toString(),
+          planId: currentPlanForTimeline.id,
+          planName: currentPlanForTimeline.name,
+          content: editorContent,
+          createdAt: now,
+          createdBy: currentUser?.username || '未知用户',
+          updatedAt: now
+        });
+        message.success('动态添加成功');
+      }
+      
+      setTimelineEditorVisible(false);
+      setEditingTimelineItem(null);
+      setEditorContent('');
+    } catch (e) {
+      message.error(`保存失败：${e?.message || '请稍后重试'}`);
     }
-    
-    setTimelineEditorVisible(false);
-    setEditingTimelineItem(null);
-    setEditorContent('');
   };
 
   const handleDeleteTimeline = (id) => {
@@ -299,7 +384,7 @@ const ProductPlanning = () => {
     message.success('动态已删除');
   };
 
-  const currentPlanTimelines = timelines
+  const currentPlanTimelines = (Array.isArray(timelines) ? timelines : [])
     .filter(t => t.planId === currentPlanForTimeline?.id)
     .filter(t => {
       if (!timelineSearch) return true;
@@ -310,6 +395,108 @@ const ProductPlanning = () => {
       );
     })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const renderPlanCard = (plan) => (
+    <div
+      key={plan.id}
+      className="group relative bg-white rounded-xl p-4 h-[300px] flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden cursor-pointer"
+      onClick={() => handleEdit(plan)}
+    >
+      <div className="relative z-20 flex flex-col pointer-events-none">
+        <div className="flex justify-between items-start mb-2">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{plan.module}</span>
+          <Tag color={plan.grade === 'S级' ? 'gold' : 'default'} className="mr-0 border-none px-1.5 py-0 rounded text-[9px] font-bold bg-gray-50 text-gray-500 group-hover:bg-gray-100 transition-colors">
+            {plan.grade}
+          </Tag>
+        </div>
+
+        <h3 className="text-base font-bold text-gray-900 leading-snug mb-1 line-clamp-1 tracking-tight" title={plan.name}>
+          {plan.name}
+        </h3>
+
+        <p className="text-xs text-gray-400 font-medium line-clamp-2 mb-2 leading-relaxed h-8">
+          {plan.desc || '暂无描述'}
+        </p>
+
+        <div className="text-[10px] text-gray-400 font-medium">
+          <span>{plan.price}</span>
+          {plan.date && plan.date !== '待定' && (
+            <>
+              <span className="mx-1">·</span>
+              <span>{plan.date} 上市</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 h-[150px] flex items-end justify-center pb-4 z-10 transition-transform duration-500 ease-out group-hover:scale-105">
+        {plan.image ? (
+          <img
+            src={plan.image}
+            className="h-full max-w-[90%] object-contain"
+            alt={plan.name}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.parentElement.classList.add('bg-gray-50');
+              e.target.parentElement.innerHTML = '<span class="text-gray-300 text-2xl"><svg viewBox="64 64 896 896" focusable="false" data-icon="picture" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 720l152-198 152 198H338zm528 48H158V232h708v536zm-648-48l184-240 160 206 128-166 176 248H218z"></path></svg></span>';
+              e.target.parentElement.classList.add('items-center');
+            }}
+          />
+        ) : (
+          <div className="h-full w-full bg-gray-50 flex items-center justify-center text-gray-300">
+            <PictureOutlined style={{ fontSize: '32px' }} />
+          </div>
+        )}
+      </div>
+
+      <div className="absolute top-6 right-6 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <Dropdown
+          overlay={
+            <Menu>
+              <Menu.Item key="timeline" icon={<HistoryOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); setCurrentPlanForTimeline(plan); setIsTimelineVisible(true); }}>
+                产品动态
+              </Menu.Item>
+              <Menu.Item key="edit" icon={<EditOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); handleEdit(plan); }}>
+                编辑
+              </Menu.Item>
+              <Menu.Item key="publish" icon={<ImportOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); }}>
+                <Popconfirm
+                  title="确定要发布这个产品吗？"
+                  description="发布后将移动到产品管理列表，并标记为在售状态。"
+                  onConfirm={(e) => { e?.stopPropagation(); handlePublish(plan); }}
+                  onCancel={(e) => e?.stopPropagation()}
+                  okText="确定发布"
+                  cancelText="取消"
+                >
+                  发布上市
+                </Popconfirm>
+              </Menu.Item>
+              <Menu.Item
+                key="delete"
+                icon={<DeleteOutlined />}
+                danger
+                disabled={deletingPlanId === plan.id}
+                onClick={(e) => {
+                  e.domEvent.stopPropagation();
+                  confirmDeletePlan(plan);
+                }}
+              >
+                {deletingPlanId === plan.id ? '删除中...' : '删除'}
+              </Menu.Item>
+            </Menu>
+          }
+          trigger={['click']}
+        >
+          <div
+            className="w-8 h-8 flex items-center justify-center bg-gray-100/80 backdrop-blur-sm rounded-full hover:bg-gray-200 cursor-pointer text-gray-600 transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreOutlined />
+          </div>
+        </Dropdown>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-[#f5f5f7] p-6 rounded-lg min-h-screen">
@@ -344,129 +531,66 @@ const ProductPlanning = () => {
         />
         <Select defaultValue="all" style={{ width: 150 }}>
           <Option value="all">所有模块</Option>
-          {modules.map(m => (
+          {safeModules.map(m => (
             <Option key={m.name} value={m.name}>{m.name}</Option>
           ))}
         </Select>
         <Button icon={<FilterOutlined />} />
+        <Button
+          icon={<SortAscendingOutlined />}
+          type={sortByLaunchDate ? 'primary' : 'default'}
+          onClick={() => setSortByLaunchDate((prev) => !prev)}
+        >
+          {sortByLaunchDate ? '按时间排序中' : '按时间排序'}
+        </Button>
       </div>
 
       <div className="space-y-8">
         {filteredPlans.length > 0 ? (
-          Object.entries(plansByCategory).map(([category, items]) => (
-            <div key={category}>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-4 w-1 bg-purple-500 rounded-full"></div>
-                <h3 className="text-lg font-bold text-gray-800">{category}</h3>
-                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
+          sortByLaunchDate ? (
+            <div className="space-y-6">
+              <div className="bg-white border border-purple-100 rounded-xl px-4 py-3 sticky top-0 z-10">
+                <div className="flex items-center gap-3 overflow-x-auto">
+                  {timelineEntries.map(([monthKey, items]) => (
+                    <div key={monthKey} className="flex items-center gap-3 shrink-0">
+                      <div className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-bold">
+                        {monthKey === '待定' ? '待定' : `${monthKey} 上市`}
+                      </div>
+                      <span className="text-[11px] text-gray-400">{items.length} 款</span>
+                      <div className="w-6 h-px bg-purple-200"></div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {items.map(plan => (
-                  <div 
-                    key={plan.id}
-                    className="group relative bg-white rounded-xl p-4 h-[300px] flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden cursor-pointer"
-                    onClick={() => handleEdit(plan)}
-                  >
-                    {/* Content Layer - Top */}
-                    <div className="relative z-20 flex flex-col pointer-events-none">
-                      <div className="flex justify-between items-start mb-2">
-                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{plan.module}</span>
-                         <Tag color={plan.grade === 'S级' ? 'gold' : 'default'} className="mr-0 border-none px-1.5 py-0 rounded text-[9px] font-bold bg-gray-50 text-gray-500 group-hover:bg-gray-100 transition-colors">
-                            {plan.grade}
-                         </Tag>
-                      </div>
 
-                      <h3 className="text-base font-bold text-gray-900 leading-snug mb-1 line-clamp-1 tracking-tight" title={plan.name}>
-                        {plan.name}
-                      </h3>
-
-                      <p className="text-xs text-gray-400 font-medium line-clamp-2 mb-2 leading-relaxed h-8">
-                        {plan.desc || '暂无描述'}
-                      </p>
-
-                      <div className="text-[10px] text-gray-400 font-medium">
-                         <span>{plan.price}</span>
-                         {plan.date && plan.date !== '待定' && (
-                           <>
-                             <span className="mx-1">·</span>
-                             <span>{plan.date} 上市</span>
-                           </>
-                         )}
-                      </div>
-                    </div>
-
-                    {/* Image Layer - Bottom */}
-                    <div className="absolute bottom-0 left-0 right-0 h-[150px] flex items-end justify-center pb-4 z-10 transition-transform duration-500 ease-out group-hover:scale-105">
-                        {plan.image ? (
-                          <img 
-                            src={plan.image} 
-                            className="h-full max-w-[90%] object-contain" 
-                            alt={plan.name}
-                            onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.parentElement.classList.add('bg-gray-50');
-                                e.target.parentElement.innerHTML = '<span class="text-gray-300 text-2xl"><svg viewBox="64 64 896 896" focusable="false" data-icon="picture" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 720l152-198 152 198H338zm528 48H158V232h708v536zm-648-48l184-240 160 206 128-166 176 248H218z"></path></svg></span>';
-                                e.target.parentElement.classList.add('items-center');
-                            }}
-                          />
-                        ) : (
-                          <div className="h-full w-full bg-gray-50 flex items-center justify-center text-gray-300">
-                             <PictureOutlined style={{ fontSize: '32px' }} />
-                          </div>
-                        )}
-                    </div>
-
-                    {/* Actions Layer - Top Right (Hover) */}
-                    <div className="absolute top-6 right-6 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                       <Dropdown 
-                          overlay={
-                            <Menu>
-                              <Menu.Item key="timeline" icon={<HistoryOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); setCurrentPlanForTimeline(plan); setIsTimelineVisible(true); }}>
-                                产品动态
-                              </Menu.Item>
-                              <Menu.Item key="edit" icon={<EditOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); handleEdit(plan); }}>
-                                编辑
-                              </Menu.Item>
-                              <Menu.Item key="publish" icon={<ImportOutlined />} onClick={(e) => { e.domEvent.stopPropagation(); }}>
-                                <Popconfirm
-                                  title="确定要发布这个产品吗？"
-                                  description="发布后将移动到产品管理列表，并标记为在售状态。"
-                                  onConfirm={(e) => { e?.stopPropagation(); handlePublish(plan); }}
-                                  onCancel={(e) => e?.stopPropagation()}
-                                  okText="确定发布"
-                                  cancelText="取消"
-                                >
-                                  发布上市
-                                </Popconfirm>
-                              </Menu.Item>
-                              <Menu.Item key="delete" icon={<DeleteOutlined />} danger onClick={(e) => e.domEvent.stopPropagation()}>
-                                <Popconfirm
-                                  title="确定要删除这个规划吗？"
-                                  onConfirm={(e) => { e?.stopPropagation(); handleDelete(plan.id); }}
-                                  onCancel={(e) => e?.stopPropagation()}
-                                  okText="确定"
-                                  cancelText="取消"
-                                >
-                                  删除
-                                </Popconfirm>
-                              </Menu.Item>
-                            </Menu>
-                          } 
-                          trigger={['click']}
-                        >
-                          <div 
-                            className="w-8 h-8 flex items-center justify-center bg-gray-100/80 backdrop-blur-sm rounded-full hover:bg-gray-200 cursor-pointer text-gray-600 transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreOutlined />
-                          </div>
-                        </Dropdown>
-                    </div>
+              {timelineEntries.map(([monthKey, items]) => (
+                <div key={monthKey} className="relative pl-6">
+                  <div className="absolute left-[7px] top-2 bottom-0 w-px bg-purple-100"></div>
+                  <div className="absolute left-0 top-2 w-4 h-4 rounded-full bg-purple-500 ring-4 ring-purple-100"></div>
+                  <div className="mb-4 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-800">{monthKey === '待定' ? '待定上市' : `${monthKey} 计划上市`}</h3>
+                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
                   </div>
-                ))}
-              </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {items.map(renderPlanCard)}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))
+          ) : (
+            categoryEntries.map(([category, items]) => (
+              <div key={category}>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-4 w-1 bg-purple-500 rounded-full"></div>
+                  <h3 className="text-lg font-bold text-gray-800">{category}</h3>
+                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {items.map(renderPlanCard)}
+                </div>
+              </div>
+            ))
+          )
         ) : (
           <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
              <PictureOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
@@ -504,11 +628,11 @@ const ProductPlanning = () => {
               </Form.Item>
 
               <Form.Item label="所属模块" name="module" rules={[{ required: true }]}>
-                <Select placeholder="选择模块" onChange={() => form.setFieldsValue({ category: undefined })}>
-                  {modules.map(m => (
-                    <Option key={m.name} value={m.name}>{m.name}</Option>
-                  ))}
-                </Select>
+                <Select placeholder="请选择模块" onChange={() => form.setFieldsValue({ category: undefined })}>
+              {safeModules.map(m => (
+                <Option key={m.id} value={m.name}>{m.name}</Option>
+              ))}
+            </Select>
               </Form.Item>
               <Form.Item label="产品品类" name="category" rules={[{ required: true }]}>
                 <Select placeholder="请选择品类">
@@ -589,7 +713,7 @@ const ProductPlanning = () => {
             <Button size="large" className="bg-gray-100 border-none text-gray-600 hover:bg-gray-200 w-32" onClick={() => setIsModalVisible(false)}>
               取消
             </Button>
-            <Button type="primary" size="large" className="w-32 bg-purple-600 hover:bg-purple-500 border-none" htmlType="submit" onClick={handleOk}>
+            <Button type="primary" size="large" className="w-32 bg-purple-600 hover:bg-purple-500 border-none" htmlType="submit" loading={savingPlan}>
               {editingPlan ? '保存修改' : '确认添加'}
             </Button>
           </div>

@@ -6,6 +6,10 @@ export const sendJson = (res, status, body) => {
 
 export const readJson = (req) =>
   new Promise((resolve, reject) => {
+    if (req.body) {
+      if (typeof req.body === 'object') return resolve(req.body);
+      try { return resolve(JSON.parse(req.body)); } catch(e) {}
+    }
     let data = '';
     req.on('data', (chunk) => {
       data += chunk;
