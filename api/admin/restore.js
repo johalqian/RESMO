@@ -23,8 +23,9 @@ export default async function handler(req, res) {
   store.plans = Array.isArray(body.plans) ? body.plans : store.plans;
   store.modules = Array.isArray(body.modules) ? body.modules : store.modules;
   store.categories = Array.isArray(body.categories) ? body.categories : store.categories;
+  store.timelines = Array.isArray(body.timelines) ? body.timelines : store.timelines;
+  store.notifications = Array.isArray(body.notifications) ? body.notifications : store.notifications;
 
   await saveStore(store);
   return sendJson(res, 200, { ok: true });
 }
-

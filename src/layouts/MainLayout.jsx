@@ -323,9 +323,37 @@ const MainLayout = () => {
     );
   };
 
+  const downloadJson = (data, filename) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleBackup = () => {
     try {
       const wb = XLSX.utils.book_new();
+      const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const rawBackup = {
+        exportedAt: new Date().toISOString(),
+        version: SYSTEM_VERSION,
+        note: '完整原始备份，保留 image 字段中的 base64 图片和图片 URL。恢复时请优先使用此 JSON 文件。',
+        products: products || [],
+        plans: plans || [],
+        modules: modules || [],
+        categories: categories || [],
+        deliveryData: deliveryData || [],
+        users: users || [],
+        timelines: timelines || [],
+        notifications: notifications || [],
+      };
 
       // Deep clone and sanitize data to ensure it's plain JSON
       const sanitize = (data) => {
@@ -376,12 +404,12 @@ const MainLayout = () => {
       const wsUsers = XLSX.utils.json_to_sheet(sanitize(users));
       XLSX.utils.book_append_sheet(wb, wsUsers, "用户账号");
 
-      // Generate filename with timestamp
-      const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const filename = `RESMO_Backup_${date}.xlsx`;
+      const rawFilename = `RESMO_Raw_Backup_${date}_with_images.json`;
 
       XLSX.writeFile(wb, filename);
-      message.success('数据备份成功！');
+      downloadJson(rawBackup, rawFilename);
+      message.success('备份完成：已导出 Excel 和包含图片的 JSON 原始备份');
     } catch (error) {
       console.error('Backup failed:', error);
       message.error(`备份失败: ${error.message}`);
@@ -398,20 +426,36 @@ const MainLayout = () => {
     if (!file) return;
 
     try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
+      const isJsonBackup = file.name.toLowerCase().endsWith('.json');
+      let payload;
 
-      const getSheet = (name) => {
-        const ws = wb.Sheets?.[name];
-        if (!ws) return null;
-        return XLSX.utils.sheet_to_json(ws, { defval: '' });
-      };
+      if (isJsonBackup) {
+        const json = JSON.parse(await file.text());
+        payload = {
+          products: Array.isArray(json.products) ? json.products : [],
+          plans: Array.isArray(json.plans) ? json.plans : [],
+          modules: Array.isArray(json.modules) ? json.modules : [],
+          categories: Array.isArray(json.categories) ? json.categories : [],
+          timelines: Array.isArray(json.timelines) ? json.timelines : [],
+          notifications: Array.isArray(json.notifications) ? json.notifications : [],
+        };
+      } else {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
 
-      const restoredProducts = getSheet('产品列表');
-      const restoredPlans = getSheet('产品规划');
-      const restoredModules = getSheet('一级模块');
-      const restoredCategories = getSheet('二级品类');
-      const restoredDelivery = getSheet('投放数据');
+        const getSheet = (name) => {
+          const ws = wb.Sheets?.[name];
+          if (!ws) return null;
+          return XLSX.utils.sheet_to_json(ws, { defval: '' });
+        };
+
+        payload = {
+          products: getSheet('产品列表') || [],
+          plans: getSheet('产品规划') || [],
+          modules: getSheet('一级模块') || [],
+          categories: getSheet('二级品类') || [],
+        };
+      }
 
       const token = localStorage.getItem('resmo_token');
       if (!token) {
@@ -425,13 +469,7 @@ const MainLayout = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          products: restoredProducts || [],
-          plans: restoredPlans || [],
-          modules: restoredModules || [],
-          categories: restoredCategories || [],
-          deliveryData: restoredDelivery || [],
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -439,7 +477,7 @@ const MainLayout = () => {
         return;
       }
 
-      message.success('数据已恢复到服务器，正在刷新页面');
+      message.success(isJsonBackup ? '完整数据已恢复，正在刷新页面' : '数据已恢复到服务器，正在刷新页面');
       window.location.reload();
     } catch (error) {
       message.error('恢复失败，请确认文件为系统导出的备份');
@@ -458,7 +496,7 @@ const MainLayout = () => {
         <input
           ref={restoreInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.json"
           style={{ display: 'none' }}
           onChange={handleRestoreFile}
         />
@@ -490,7 +528,7 @@ const MainLayout = () => {
              className="text-[#8BB6CC] hover:text-white cursor-pointer flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-white/5 transition-all group"
            >
              <CloudDownloadOutlined style={{ fontSize: '16px' }} className="group-hover:text-green-400 transition-colors" /> 
-             <span className="font-medium">一键备份数据</span>
+             <span className="font-medium">完整备份数据</span>
            </div>
 
            {currentUser?.role === 'admin' && (

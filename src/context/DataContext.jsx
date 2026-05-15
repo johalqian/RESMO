@@ -120,52 +120,44 @@ export const DataProvider = ({ children }) => {
 
   // Product Actions
   const addProduct = async (product) => {
-    const next = [product, ...products];
-    setProducts(next);
-    await saveState({ products: next });
+    setProducts([product, ...products]);
+    await saveState({ action: 'addProduct', payload: product });
   };
 
   const addProducts = async (newProducts) => {
-    const next = [...newProducts, ...products];
-    setProducts(next);
-    await saveState({ products: next });
+    setProducts([...newProducts, ...products]);
+    await saveState({ action: 'addProducts', payload: newProducts });
   };
 
   const updateProduct = async (updatedProduct) => {
-    const next = products.map((item) => (item.key === updatedProduct.key ? updatedProduct : item));
-    setProducts(next);
-    await saveState({ products: next });
+    setProducts(products.map((item) => (item.key === updatedProduct.key ? updatedProduct : item)));
+    await saveState({ action: 'updateProduct', payload: updatedProduct });
   };
 
   const deleteProduct = async (key) => {
-    const next = products.filter((item) => item.key !== key);
-    setProducts(next);
-    await saveState({ products: next });
+    setProducts(products.filter((item) => item.key !== key));
+    await saveState({ action: 'deleteProduct', payload: key });
   };
 
   // Plan Actions
   const addPlan = async (plan) => {
-    const next = [plan, ...plans];
-    setPlans(next);
-    await saveState({ plans: next });
+    setPlans([plan, ...plans]);
+    await saveState({ action: 'addPlan', payload: plan });
   };
 
   const addPlans = async (newPlans) => {
-    const next = [...newPlans, ...plans];
-    setPlans(next);
-    await saveState({ plans: next });
+    setPlans([...newPlans, ...plans]);
+    await saveState({ action: 'addPlans', payload: newPlans });
   };
 
   const updatePlan = async (updatedPlan) => {
-    const next = plans.map((item) => (item.id === updatedPlan.id ? updatedPlan : item));
-    setPlans(next);
-    await saveState({ plans: next });
+    setPlans(plans.map((item) => (item.id === updatedPlan.id ? updatedPlan : item)));
+    await saveState({ action: 'updatePlan', payload: updatedPlan });
   };
 
   const deletePlan = async (id) => {
-    const next = plans.filter((item) => item.id !== id);
-    setPlans(next);
-    await saveState({ plans: next });
+    setPlans(plans.filter((item) => item.id !== id));
+    await saveState({ action: 'deletePlan', payload: id });
   };
 
   const publishPlan = async (planId, newProduct) => {
@@ -190,44 +182,38 @@ export const DataProvider = ({ children }) => {
   // Module Actions
   const addModule = async (moduleName) => {
     const newModule = { name: moduleName, id: Date.now().toString() };
-    const nextModules = [...modules, newModule];
-    setModules(nextModules);
-    await saveState({ modules: nextModules });
+    setModules([...modules, newModule]);
+    await saveState({ action: 'addModule', payload: newModule });
   };
 
   const deleteModule = async (moduleName) => {
-    const nextModules = modules.filter((m) => m.name !== moduleName);
-    const nextCategories = categories.filter((c) => c.module !== moduleName);
-    setModules(nextModules);
-    setCategories(nextCategories);
-    await saveState({ modules: nextModules, categories: nextCategories });
+    setModules(modules.filter((m) => m.name !== moduleName));
+    setCategories(categories.filter((c) => c.module !== moduleName));
+    await saveState({ action: 'deleteModule', payload: moduleName });
   };
 
   // Category Actions
   const addCategory = async (moduleName, category) => {
     const newCat = { ...category, module: moduleName };
-    const next = [...categories, newCat];
-    setCategories(next);
-    await saveState({ categories: next });
+    setCategories([...categories, newCat]);
+    await saveState({ action: 'addCategory', payload: newCat });
   };
 
   const updateCategory = async (oldModule, oldName, newModule, newName) => {
-    const next = categories.map((cat) => {
+    setCategories(categories.map((cat) => {
       if (cat.module === oldModule && cat.name === oldName) {
         return { ...cat, module: newModule, name: newName };
       }
       return cat;
-    });
-    setCategories(next);
-    await saveState({ categories: next });
+    }));
+    await saveState({ action: 'updateCategory', payload: { oldModule, oldName, newModule, newName } });
   };
 
   const deleteCategory = async (moduleName, categoryName) => {
-    const next = categories.filter(
+    setCategories(categories.filter(
       (cat) => !(cat.module === moduleName && cat.name === categoryName)
-    );
-    setCategories(next);
-    await saveState({ categories: next });
+    ));
+    await saveState({ action: 'deleteCategory', payload: { moduleName, categoryName } });
   };
 
   // Delivery Data Actions
@@ -269,45 +255,29 @@ export const DataProvider = ({ children }) => {
 
   // Timeline Actions
   const addTimeline = async (timeline) => {
-    let next;
-    setTimelines(prev => {
-      next = [timeline, ...prev];
-      return next;
-    });
-    await saveState({ timelines: next });
+    setTimelines(prev => [timeline, ...prev]);
+    await saveState({ action: 'addTimeline', payload: timeline });
   };
 
   const updateTimeline = async (updatedTimeline) => {
-    let next;
-    setTimelines(prev => {
-      next = prev.map((item) => (item.id === updatedTimeline.id ? updatedTimeline : item));
-      return next;
-    });
-    await saveState({ timelines: next });
+    setTimelines(prev => prev.map((item) => (item.id === updatedTimeline.id ? updatedTimeline : item)));
+    await saveState({ action: 'updateTimeline', payload: updatedTimeline });
   };
 
   const deleteTimeline = async (id) => {
-    let next;
-    setTimelines(prev => {
-      next = prev.filter((item) => item.id !== id);
-      return next;
-    });
-    await saveState({ timelines: next });
+    setTimelines(prev => prev.filter((item) => item.id !== id));
+    await saveState({ action: 'deleteTimeline', payload: id });
   };
 
   // Notification Actions
   const addNotification = async (notification) => {
-    let next;
-    setNotifications(prev => {
-      next = [notification, ...prev];
-      return next;
-    });
-    await saveState({ notifications: next });
+    setNotifications(prev => [notification, ...prev]);
+    await saveState({ action: 'addNotification', payload: notification });
   };
 
   const clearNotifications = async () => {
     setNotifications([]);
-    await saveState({ notifications: [] });
+    await saveState({ action: 'clearNotifications' });
   };
 
   // User Actions

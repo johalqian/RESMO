@@ -51,41 +51,81 @@ export default async function handler(req, res) {
     let store = await loadStore();
     store = await ensureAdmin(store);
 
-    // Merge logic: Only update fields that are present in the body
-    // If body.plans is NOT provided, keep store.plans as is.
-    // If body.plans IS provided, update it.
-    
-    // NOTE: The previous logic ALREADY did this:
-    // store.plans = Array.isArray(body.plans) ? body.plans : store.plans;
-    // This means if body.plans is undefined, it keeps store.plans.
-    // BUT, if body.plans is an EMPTY ARRAY [], it overwrites store.plans with [].
-    
-    // The issue might be that the frontend sends [] when it thinks it has no plans (e.g. initial load race condition).
-    // But we fixed the frontend to use functional updates.
-    
-    // Let's add server-side logging to debug what exactly is being received.
-    console.log('PUT /api/state received body keys:', Object.keys(body));
-    if (body.plans) console.log('Received plans count:', body.plans.length);
-    
-    // CRITICAL FIX: If the frontend sends an empty array, is it intentional (user deleted all) or accidental?
-    // We can't know for sure. But "disappearing" usually means accidental.
-    // However, if we block empty arrays, users can't delete the last item.
-    
-    // Let's look at the store logic again.
-    // Maybe loadStore() is returning default state because of Redis connection issues?
-    
-    store.products = Array.isArray(body.products) ? body.products : store.products;
-    store.plans = Array.isArray(body.plans) ? body.plans : store.plans;
-    store.modules = Array.isArray(body.modules) ? body.modules : store.modules;
-    store.categories = Array.isArray(body.categories) ? body.categories : store.categories;
-    store.timelines = Array.isArray(body.timelines) ? body.timelines : store.timelines || [];
-    store.notifications = Array.isArray(body.notifications) ? body.notifications : store.notifications || [];
+    if (body.action) {
+      const { action, payload } = body;
+      switch (action) {
+        case 'addProduct':
+          store.products.unshift(payload);
+          break;
+        case 'addProducts':
+          store.products.unshift(...payload);
+          break;
+        case 'updateProduct':
+          store.products = store.products.map(p => p.key === payload.key ? payload : p);
+          break;
+        case 'deleteProduct':
+          store.products = store.products.filter(p => p.key !== payload);
+          break;
+        case 'addPlan':
+          store.plans.unshift(payload);
+          break;
+        case 'addPlans':
+          store.plans.unshift(...payload);
+          break;
+        case 'updatePlan':
+          store.plans = store.plans.map(p => p.id === payload.id ? payload : p);
+          break;
+        case 'deletePlan':
+          store.plans = store.plans.filter(p => p.id !== payload);
+          break;
+        case 'addModule':
+          store.modules.push(payload);
+          break;
+        case 'deleteModule':
+          store.modules = store.modules.filter(m => m.name !== payload);
+          store.categories = store.categories.filter(c => c.module !== payload);
+          break;
+        case 'addCategory':
+          store.categories.push(payload);
+          break;
+        case 'updateCategory':
+          store.categories = store.categories.map(c =>
+            c.module === payload.oldModule && c.name === payload.oldName
+              ? { ...c, module: payload.newModule, name: payload.newName }
+              : c
+          );
+          break;
+        case 'deleteCategory':
+          store.categories = store.categories.filter(c =>
+            !(c.module === payload.moduleName && c.name === payload.categoryName)
+          );
+          break;
+        case 'addTimeline':
+          store.timelines.unshift(payload);
+          break;
+        case 'updateTimeline':
+          store.timelines = store.timelines.map(t => t.id === payload.id ? payload : t);
+          break;
+        case 'deleteTimeline':
+          store.timelines = store.timelines.filter(t => t.id !== payload);
+          break;
+        case 'addNotification':
+          store.notifications.unshift(payload);
+          break;
+        case 'clearNotifications':
+          store.notifications = [];
+          break;
+      }
+    } else {
+      store.products = Array.isArray(body.products) ? body.products : store.products;
+      store.plans = Array.isArray(body.plans) ? body.plans : store.plans;
+      store.modules = Array.isArray(body.modules) ? body.modules : store.modules;
+      store.categories = Array.isArray(body.categories) ? body.categories : store.categories;
+      store.timelines = Array.isArray(body.timelines) ? body.timelines : store.timelines || [];
+      store.notifications = Array.isArray(body.notifications) ? body.notifications : store.notifications || [];
+    }
 
     await saveStore(store);
-    
-    // Verify persistence immediately
-    // const verify = await loadStore();
-    // console.log('Verified persistence plans count:', verify.plans.length);
     
     return sendJson(res, 200, { ok: true });
     } catch (err) {
@@ -96,4 +136,3 @@ export default async function handler(req, res) {
 
   return methodNotAllowed(res);
 }
-
